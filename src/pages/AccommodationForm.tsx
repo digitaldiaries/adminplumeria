@@ -1,95 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2 } from 'lucide-react';
-
-// admin base URL - adjust this to match your backend URL
-const admin_BASE_URL = 'http://localhost:5001';
-
-interface Accommodation {
-  id?: number;
-  name: string;
-  description: string;
-  type: string;
-  capacity: number;
-  bedrooms: number;
-  bathrooms: number;
-  size: number;
-  price: number;
-  features: string[];
-  images: string[];
-  available: boolean;
-}
+import { ArrowLeft, Building2, Plus, X, Save, Trash2 } from 'lucide-react';
 
 const AccommodationForm: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = id !== undefined;
 
-  const [formData, setFormData] = useState<Accommodation>({
-    name: '',
-    description: '',
-    type: '',
-    capacity: 2,
-    bedrooms: 1,
-    bathrooms: 1,
-    size: 0,
-    price: 0,
-    features: [],
-    images: [],
-    available: true
-  });
+  // Mock data for editing
+  const accommodation = isEditing
+    ? {
+        id: 1,
+        name: 'Lake View Villa',
+        description: 'A luxurious villa with panoramic views of the lake, perfect for a romantic getaway or small family.',
+        type: 'Villa',
+        capacity: 4,
+        bedrooms: 2,
+        bathrooms: 2,
+        size: 120,
+        price: 12500,
+        features: ['Air Conditioning', 'Free WiFi', 'Private Pool', 'Kitchen', 'Lake View', 'Breakfast Included'],
+        images: [
+          'https://images.pexels.com/photos/1134176/pexels-photo-1134176.jpeg',
+          'https://images.pexels.com/photos/261102/pexels-photo-261102.jpeg',
+          'https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg',
+        ],
+        available: true
+      }
+    : {
+        id: null,
+        name: '',
+        description: '',
+        type: '',
+        capacity: 2,
+        bedrooms: 1,
+        bathrooms: 1,
+        size: 0,
+        price: 0,
+        features: [],
+        images: [],
+        available: true
+      };
 
+  const [formData, setFormData] = useState(accommodation);
   const [newFeature, setNewFeature] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
-  const [uploading, setUploading] = useState(false);
-
-  // Fetch accommodation data if editing
-  useEffect(() => {
-    if (isEditing && id) {
-      fetchAccommodation(id);
-    }
-  }, [isEditing, id]);
-
-  const fetchAccommodation = async (accommodationId: string) => {
-    setFetching(true);
-    try {
-      const response = await fetch(`${admin_BASE_URL}/admin/accommodations/${accommodationId}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          setSubmitError('Accommodation not found');
-          return;
-        }
-        throw new Error('Failed to fetch accommodation');
-      }
-      
-      const data = await response.json();
-      setFormData({
-        id: data.id,
-        name: data.name || '',
-        description: data.description || '',
-        type: data.type || '',
-        capacity: data.capacity || 2,
-        bedrooms: data.bedrooms || 1,
-        bathrooms: data.bathrooms || 1,
-        size: data.size || 0,
-        price: data.price || 0,
-        features: data.features || [],
-        images: data.images || [],
-        available: data.available !== undefined ? data.available : true
-      });
-    } catch (error) {
-      console.error('Error fetching accommodation:', error);
-      setSubmitError('Failed to load accommodation data');
-    } finally {
-      setFetching(false);
-    }
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -102,20 +58,12 @@ const AccommodationForm: React.FC = () => {
     } else if (name === 'price' || name === 'capacity' || name === 'bedrooms' || name === 'bathrooms' || name === 'size') {
       setFormData({
         ...formData,
-        [name]: value === '' ? 0 : Number(value),
+        [name]: value === '' ? '' : Number(value),
       });
     } else {
       setFormData({
         ...formData,
         [name]: value,
-      });
-    }
-    
-    // Clear field-specific error when user starts typing
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: ''
       });
     }
   };
@@ -137,61 +85,13 @@ const AccommodationForm: React.FC = () => {
     });
   };
 
-  const handleImageUpload = async (file: File | string) => {
-    setUploading(true);
-    try {
-      const uploadFormData = new FormData();
-      
-      if (typeof file === 'string') {
-        // Handle URL upload
-        const response = await fetch(`${admin_BASE_URL}/admin/accommodations/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            imageUrl: file,
-            title: formData.name || 'Accommodation Image',
-            alt_text: formData.name || 'Accommodation Image',
-            description: formData.description || ''
-          }),
-        });
-        
-        const data = await response.json();
-        if (data.imageUrl) {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, data.imageUrl]
-          }));
-        }
-      } else {
-        // Handle file upload
-        uploadFormData.append('image', file);
-        uploadFormData.append('title', formData.name || 'Accommodation Image');
-        uploadFormData.append('alt_text', formData.name || 'Accommodation Image');
-        uploadFormData.append('description', formData.description || '');
-        
-        const response = await fetch(`${admin_BASE_URL}/admin/accommodations/upload`, {
-          method: 'POST',
-          body: uploadFormData,
-        });
-        
-        const data = await response.json();
-        if (data.imageUrl) {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, data.imageUrl]
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      setErrors(prev => ({
-        ...prev,
-        imageUrl: 'Failed to upload image'
-      }));
-    } finally {
-      setUploading(false);
+  const addImage = () => {
+    if (newImageUrl.trim() && !formData.images.includes(newImageUrl.trim())) {
+      setFormData({
+        ...formData,
+        images: [...formData.images, newImageUrl.trim()],
+      });
+      setNewImageUrl('');
     }
   };
 
@@ -217,15 +117,6 @@ const AccommodationForm: React.FC = () => {
     if (formData.price <= 0) {
       newErrors.price = 'Price must be greater than 0';
     }
-    if (formData.capacity <= 0) {
-      newErrors.capacity = 'Capacity must be greater than 0';
-    }
-    if (formData.bedrooms <= 0) {
-      newErrors.bedrooms = 'Bedrooms must be greater than 0';
-    }
-    if (formData.bathrooms <= 0) {
-      newErrors.bathrooms = 'Bathrooms must be greater than 0';
-    }
     if (formData.images.length === 0) {
       newErrors.images = 'At least one image is required';
     }
@@ -234,59 +125,15 @@ const AccommodationForm: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError('');
     
-    if (!validate()) {
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const url = isEditing 
-        ? `${admin_BASE_URL}/admin/accommodations/${id}`
-        : `${admin_BASE_URL}/admin/accommodations`;
-        
-      const method = isEditing ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save accommodation');
-      }
-
-      const savedAccommodation = await response.json();
-      console.log('Accommodation saved:', savedAccommodation);
-      
-      // Navigate back to accommodations list
+    if (validate()) {
+      // In a real application, this would be an API call
+      console.log('Form submitted:', formData);
       navigate('/accommodations');
-    } catch (error) {
-      console.error('Error saving accommodation:', error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to save accommodation');
-    } finally {
-      setLoading(false);
     }
   };
-
-  if (fetching) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="flex items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500 mr-3" />
-          <span className="text-lg text-gray-600">Loading accommodation...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 pb-16 md:pb-0">
@@ -311,19 +158,6 @@ const AccommodationForm: React.FC = () => {
         </div>
       </div>
 
-      {submitError && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{submitError}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
@@ -331,7 +165,7 @@ const AccommodationForm: React.FC = () => {
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
               <div className="sm:col-span-4">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Accommodation Name *
+                  Accommodation Name
                 </label>
                 <div className="mt-1">
                   <input
@@ -350,7 +184,7 @@ const AccommodationForm: React.FC = () => {
 
               <div className="sm:col-span-2">
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-                  Type *
+                  Type
                 </label>
                 <div className="mt-1">
                   <select
@@ -368,8 +202,6 @@ const AccommodationForm: React.FC = () => {
                     <option value="Cottage">Cottage</option>
                     <option value="Bungalow">Bungalow</option>
                     <option value="Glamping">Glamping</option>
-                    <option value="Standard">Standard Room</option>
-                    <option value="Deluxe">Deluxe Room</option>
                   </select>
                   {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
                 </div>
@@ -377,7 +209,7 @@ const AccommodationForm: React.FC = () => {
 
               <div className="sm:col-span-6">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description *
+                  Description
                 </label>
                 <div className="mt-1">
                   <textarea
@@ -396,7 +228,7 @@ const AccommodationForm: React.FC = () => {
 
               <div className="sm:col-span-1">
                 <label htmlFor="capacity" className="block text-sm font-medium text-gray-700">
-                  Capacity *
+                  Capacity
                 </label>
                 <div className="mt-1">
                   <input
@@ -406,17 +238,14 @@ const AccommodationForm: React.FC = () => {
                     min="1"
                     value={formData.capacity}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.capacity ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   />
-                  {errors.capacity && <p className="mt-1 text-sm text-red-600">{errors.capacity}</p>}
                 </div>
               </div>
 
               <div className="sm:col-span-1">
                 <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-700">
-                  Bedrooms *
+                  Bedrooms
                 </label>
                 <div className="mt-1">
                   <input
@@ -426,17 +255,14 @@ const AccommodationForm: React.FC = () => {
                     min="1"
                     value={formData.bedrooms}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.bedrooms ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   />
-                  {errors.bedrooms && <p className="mt-1 text-sm text-red-600">{errors.bedrooms}</p>}
                 </div>
               </div>
 
               <div className="sm:col-span-1">
                 <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-700">
-                  Bathrooms *
+                  Bathrooms
                 </label>
                 <div className="mt-1">
                   <input
@@ -446,11 +272,8 @@ const AccommodationForm: React.FC = () => {
                     min="1"
                     value={formData.bathrooms}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.bathrooms ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   />
-                  {errors.bathrooms && <p className="mt-1 text-sm text-red-600">{errors.bathrooms}</p>}
                 </div>
               </div>
 
@@ -463,7 +286,7 @@ const AccommodationForm: React.FC = () => {
                     type="number"
                     name="size"
                     id="size"
-                    min="0"
+                    min="1"
                     value={formData.size}
                     onChange={handleChange}
                     className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
@@ -473,7 +296,7 @@ const AccommodationForm: React.FC = () => {
 
               <div className="sm:col-span-2">
                 <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  Price per night (₹) *
+                  Price per night (₹)
                 </label>
                 <div className="mt-1">
                   <input
@@ -481,7 +304,6 @@ const AccommodationForm: React.FC = () => {
                     name="price"
                     id="price"
                     min="0"
-                    step="0.01"
                     value={formData.price}
                     onChange={handleChange}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
@@ -563,103 +385,51 @@ const AccommodationForm: React.FC = () => {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
             <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Images</h2>
-            
-            {/* Image Upload Method Toggle */}
-            <div className="flex space-x-4 mb-4">
-              <button
-                type="button"
-                onClick={() => setUploadMethod('file')}
-                className={`px-4 py-2 rounded-md ${
-                  uploadMethod === 'file'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                Upload File
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMethod('url')}
-                className={`px-4 py-2 rounded-md ${
-                  uploadMethod === 'url'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                Add URL
-              </button>
-            </div>
-
-            {/* File Upload */}
-            {uploadMethod === 'file' && (
-              <div className="mt-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleImageUpload(file);
-                    }
-                  }}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {formData.images.map((image, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden bg-gray-100">
+                      <img src={image} alt="" className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(image)}
+                        className="absolute top-2 right-2 p-1 rounded-full bg-red-600 text-white opacity-0 group-hover:opacity-100 focus:outline-none transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 p-4 flex flex-col items-center justify-center">
+                  <Building2 className="h-10 w-10 text-gray-400" />
+                  <p className="text-sm text-gray-500 mt-2">Add more images</p>
+                </div>
               </div>
-            )}
-
-            {/* URL Upload */}
-            {uploadMethod === 'url' && (
-              <div className="flex space-x-2">
+              {errors.images && <p className="text-sm text-red-600">{errors.images}</p>}
+              <div className="flex">
                 <input
                   type="text"
                   value={newImageUrl}
                   onChange={(e) => setNewImageUrl(e.target.value)}
-                  placeholder="Enter image URL"
-                  className="flex-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  placeholder="Add image URL"
+                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md rounded-r-none"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addImage();
+                    }
+                  }}
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newImageUrl.trim()) {
-                      handleImageUpload(newImageUrl.trim());
-                      setNewImageUrl('');
-                    }
-                  }}
-                  disabled={uploading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  onClick={addImage}
+                  className="inline-flex items-center px-4 py-2 border border-transparent border-l-0 shadow-sm text-sm font-medium rounded-none rounded-r-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  {uploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
+                  <Plus className="h-4 w-4" />
                 </button>
               </div>
-            )}
-
-            {/* Image Preview Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-              {formData.images.map((image, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={image}
-                    alt={`Accommodation ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(image)}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
             </div>
-            
-            {errors.images && (
-              <p className="mt-1 text-sm text-red-600">{errors.images}</p>
-            )}
           </div>
         </div>
 
@@ -673,20 +443,10 @@ const AccommodationForm: React.FC = () => {
           </Link>
           <button
             type="submit"
-            disabled={loading}
-            className="inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {isEditing ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                {isEditing ? 'Update Accommodation' : 'Create Accommodation'}
-              </>
-            )}
+            <Save className="h-4 w-4 mr-2" />
+            {isEditing ? 'Update Accommodation' : 'Create Accommodation'}
           </button>
         </div>
       </form>
