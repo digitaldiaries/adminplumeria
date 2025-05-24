@@ -1,10 +1,55 @@
-import React, { useState } from 'react';
-import { Image, Search, Filter, UploadCloud, XCircle, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Image, Search, Filter, UploadCloud, XCircle, Trash2, Edit, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
-const Gallery: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('all');
+interface GalleryImage {
+  id: string;
+  image_url: string;
+  title: string;
+  alt_text: string;
+  description: string;
+  category: string;
+  sort_order?: number;
+  active?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface GalleryApiResponse {
+  images: GalleryImage[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+interface CategoryStat {
+  category: string;
+  count: number;
+}
+
+interface GalleryStats {
+  total: number;
+  by_category: CategoryStat[];
+}
+
+const Gallery = () => {
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+  const [stats, setStats] = useState<GalleryStats>({ total: 0, by_category: [] });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadDetails, setUploadDetails] = useState({
+    category: 'accommodation',
+    title: '',
+    alt_text: '',
+    description: ''
+  });
+  const API_BASE_URL = 'http://localhost:5001';
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const filters = [
     { id: 'all', name: 'All' },
@@ -14,105 +59,324 @@ const Gallery: React.FC = () => {
     { id: 'lakeside', name: 'Lake Side' },
   ];
 
-  const galleryImages = [
-    {
-      id: 1,
-      url: 'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg',
-      title: 'Luxury Villa Interior',
-      category: 'accommodation',
-    },
-    {
-      id: 2,
-      url: 'https://images.pexels.com/photos/2507010/pexels-photo-2507010.jpeg',
-      title: 'Garden Suite View',
-      category: 'accommodation',
-    },
-    {
-      id: 3,
-      url: 'https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg',
-      title: 'Morning Lake View',
-      category: 'lakeside',
-    },
-    {
-      id: 4,
-      url: 'https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg',
-      title: 'Kayaking Adventure',
-      category: 'activities',
-    },
-    {
-      id: 5,
-      url: 'https://images.pexels.com/photos/1179156/pexels-photo-1179156.jpeg',
-      title: 'Forest Trail Hike',
-      category: 'activities',
-    },
-    {
-      id: 6,
-      url: 'https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg',
-      title: 'Mountain Sunrise',
-      category: 'nature',
-    },
-    {
-      id: 7,
-      url: 'https://images.pexels.com/photos/189349/pexels-photo-189349.jpeg',
-      title: 'Lake Front Sunset',
-      category: 'lakeside',
-    },
-    {
-      id: 8,
-      url: 'https://images.pexels.com/photos/1438834/pexels-photo-1438834.jpeg',
-      title: 'Family Bungalow',
-      category: 'accommodation',
-    },
-    {
-      id: 9,
-      url: 'https://images.pexels.com/photos/2387069/pexels-photo-2387069.jpeg',
-      title: 'Luxury Tent Exterior',
-      category: 'accommodation',
-    },
-    {
-      id: 10,
-      url: 'https://images.pexels.com/photos/2113566/pexels-photo-2113566.jpeg',
-      title: 'Evening Boat Ride',
-      category: 'activities',
-    },
-    {
-      id: 11,
-      url: 'https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg',
-      title: 'Mountain Landscape',
-      category: 'nature',
-    },
-    {
-      id: 12,
-      url: 'https://images.pexels.com/photos/1005417/pexels-photo-1005417.jpeg',
-      title: 'Resort Front View',
-      category: 'accommodation',
-    },
-  ];
+  // Fetch gallery images from backend
+  const fetchImages = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (activeFilter !== 'all') params.append('category', activeFilter);
+      if (searchTerm) params.append('search', searchTerm);
 
-  const filteredImages = galleryImages.filter(
-    (image) =>
-      (activeFilter === 'all' || image.category === activeFilter) &&
-      (image.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        image.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      const response = await fetch(`${API_BASE_URL}/admin/gallery?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch images');
+
+      const data: GalleryApiResponse = await response.json();
+      setImages(data.images || []);
+    } catch (err: any) {
+      setError('Failed to load gallery images');
+      console.error('Error fetching images:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch gallery statistics
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/gallery/stats`, {
+        method: 'GET',
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data: GalleryStats = await response.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
+  };
+
+  // Upload images to backend
+  const handleUpload = async (files: FileList | null, details: typeof uploadDetails) => {
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploading(true);
+      setError('');
+
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append('images', file);
+      });
+      formData.append('category', details.category);
+      formData.append('title', details.title);
+      formData.append('alt_text', details.alt_text);
+      formData.append('description', details.description);
+
+      const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const data: { images: GalleryImage[] } = await response.json();
+      setSuccess(`${data.images.length} image(s) uploaded successfully`);
+
+      // Refresh images and stats
+      await fetchImages();
+      await fetchStats();
+
+      // Clear file input and reset form
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setUploadDetails({
+        category: 'accommodation',
+        title: '',
+        alt_text: '',
+        description: ''
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload images');
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle modal upload
+  const handleModalUpload = () => {
+    if (!selectedFiles) return;
+    handleUpload(selectedFiles, uploadDetails);
+    setShowUploadModal(false);
+    setSelectedFiles(null);
+  };
+
+  // Delete image from backend
+  const handleDelete = async (imageId: string) => {
+    if (!window.confirm('Are you sure you want to delete this image?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/gallery-2/${imageId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Delete failed');
+      }
+
+      setSuccess('Image deleted successfully');
+
+      // Remove image from state
+      setImages(prev => prev.filter(img => img.id !== imageId));
+
+      // Refresh stats
+      await fetchStats();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete image');
+      console.error('Delete error:', err);
+    }
+  };
+
+  // Clear messages after 3 seconds
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError('');
+        setSuccess('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
+
+  // Fetch data on component mount and filter/search changes
+  useEffect(() => {
+    fetchImages();
+  }, [activeFilter, searchTerm]);
+
+  // useEffect(() => {
+  //   fetchStats();
+  // }, []);
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setSelectedFiles(files);
+      // Set default category based on current filter
+      setUploadDetails(prev => ({
+        ...prev,
+        category: activeFilter === 'all' ? 'accommodation' : activeFilter,
+      }));
+      setShowUploadModal(true);
+    }
+  };
+
+  // Trigger file input click
+  const triggerUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
 
   return (
     <div className="space-y-6 pb-16 md:pb-0">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => {
+                setShowUploadModal(false);
+                setSelectedFiles(null);
+              }}
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Upload Image Details</h2>
+            
+            {/* Show selected files */}
+            {selectedFiles && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-md">
+                <p className="text-sm text-gray-600">
+                  Selected files: {Array.from(selectedFiles).map(f => f.name).join(', ')}
+                </p>
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category *</label>
+                <select
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={uploadDetails.category}
+                  onChange={e => setUploadDetails({ ...uploadDetails, category: e.target.value })}
+                  required
+                >
+                  {filters.filter(f => f.id !== 'all').map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Title *</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={uploadDetails.title}
+                  onChange={e => setUploadDetails({ ...uploadDetails, title: e.target.value })}
+                  placeholder="Enter image title"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Alt Text *</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={uploadDetails.alt_text}
+                  onChange={e => setUploadDetails({ ...uploadDetails, alt_text: e.target.value })}
+                  placeholder="Enter alt text for accessibility"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <textarea
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={uploadDetails.description}
+                  onChange={e => setUploadDetails({ ...uploadDetails, description: e.target.value })}
+                  placeholder="Enter image description (optional)"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedFiles(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={uploading}
+                  onClick={handleModalUpload}
+                >
+                  {uploading ? 'Uploading...' : 'Upload Images'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your resort's image gallery</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage your resort's image gallery ({stats.total} images)
+          </p>
         </div>
         <div className="mt-4 sm:mt-0">
           <button
             type="button"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={triggerUpload}
+            disabled={uploading}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UploadCloud className="h-4 w-4 mr-2" />
-            Upload Images
+            {uploading ? 'Uploading...' : 'Upload Images'}
           </button>
         </div>
       </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="rounded-md bg-red-50 p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-md bg-green-50 p-4">
+          <div className="flex">
+            <CheckCircle className="h-5 w-5 text-green-400" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{success}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
@@ -136,14 +400,6 @@ const Gallery: React.FC = () => {
             </button>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setFilterOpen(!filterOpen)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </button>
       </div>
 
       {/* Filter tabs */}
@@ -158,6 +414,8 @@ const Gallery: React.FC = () => {
           {filters.map((filter) => (
             <option key={filter.id} value={filter.id}>
               {filter.name}
+              {stats.by_category.find(cat => cat.category === filter.id)?.count !== undefined &&
+                ` (${stats.by_category.find(cat => cat.category === filter.id)?.count})`}
             </option>
           ))}
         </select>
@@ -165,7 +423,13 @@ const Gallery: React.FC = () => {
       <div className="hidden sm:block">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {filters.map((filter) => (
+            {filters.map((filter) => {
+            const count =
+              filter.id === 'all'
+                ? images.length
+                : images.filter(img => img.category === filter.id).length;
+
+            return (
               <button
                 key={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
@@ -175,55 +439,101 @@ const Gallery: React.FC = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors duration-150`}
               >
-                {filter.name}
+                {filter.name} ({count})
               </button>
-            ))}
+            );
+          })}
           </nav>
         </div>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center items-center py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading images...</span>
+        </div>
+      )}
+
       {/* Gallery Grid */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
-        {filteredImages.map((image) => (
-          <div key={image.id} className="relative group rounded-lg overflow-hidden bg-gray-200">
-            <div className="aspect-w-1 aspect-h-1">
-              <img
-                src={image.url}
-                alt={image.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
-                  <button className="p-1.5 bg-white rounded-full text-red-600 hover:bg-red-50">
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                  <button className="p-1.5 bg-white rounded-full text-blue-600 hover:bg-blue-50">
-                    <Image className="h-5 w-5" />
-                  </button>
+      {!loading && (
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+          {images.map((image) => (
+            <div key={image.id} className="relative group rounded-lg overflow-hidden bg-gray-200">
+              <div className="aspect-w-1 aspect-h-1">
+                <img
+                  src={image.image_url}
+                  alt={image.alt_text || image.title}
+                  className="w-full h-full object-cover"
+                  onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                    e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Image+Not+Found';
+                  }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
+                    <button
+                      onClick={() => handleDelete(image.id)}
+                      className="p-1.5 bg-white rounded-full text-red-600 hover:bg-red-50"
+                      title="Delete image"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => window.open(image.image_url, '_blank')}
+                      className="p-1.5 bg-white rounded-full text-blue-600 hover:bg-blue-50"
+                      title="View full image"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
+              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black to-transparent">
+                <p className="text-white text-sm truncate" title={image.title}>
+                  {image.title}
+                </p>
+                <span className="text-xs text-gray-300 capitalize">
+                  {image.category}
+                </span>
+              </div>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black to-transparent">
-              <p className="text-white text-sm truncate">{image.title}</p>
-              <span className="text-xs text-gray-300 capitalize">{image.category}</span>
-            </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Upload Placeholder */}
-        <div className="relative rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
-          <div className="aspect-w-1 aspect-h-1 flex flex-col items-center justify-center p-4">
-            <UploadCloud className="h-8 w-8 text-gray-400" />
-            <p className="text-sm text-gray-500 mt-2 text-center">Upload Image</p>
+          {/* Upload Placeholder */}
+          <div
+            onClick={triggerUpload}
+            className="relative rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
+          >
+            <div className="aspect-w-1 aspect-h-1 flex flex-col items-center justify-center p-4">
+              <UploadCloud className="h-8 w-8 text-gray-400" />
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                {uploading ? 'Uploading...' : 'Upload Image'}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {filteredImages.length === 0 && (
+      {/* No images state */}
+      {!loading && images.length === 0 && (
         <div className="text-center py-10">
           <Image className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No images found</h3>
-          <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchTerm || activeFilter !== 'all'
+              ? 'Try adjusting your search or filter criteria.'
+              : 'Upload your first image to get started.'
+            }
+          </p>
+          {(!searchTerm && activeFilter === 'all') && (
+            <button
+              onClick={triggerUpload}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <UploadCloud className="h-4 w-4 mr-2" />
+              Upload Images
+            </button>
+          )}
         </div>
       )}
     </div>
