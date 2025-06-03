@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pencil, XCircle } from "lucide-react";
+import { Pencil, XCircle, PlusCircle } from "lucide-react";
 
 type User = {
   id: number;
@@ -38,6 +38,7 @@ const initialUsers: User[] = [
 const Users = () => {
   const [users, setUsers] = useState(initialUsers);
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [newUser, setNewUser] = useState<User | null>(null);
 
   const handleEditClick = (user: User) => {
     setEditUser(user);
@@ -50,12 +51,38 @@ const Users = () => {
     setEditUser(null);
   };
 
+  const handleAddUser = () => {
+    if (newUser) {
+      setUsers((prev) => [...prev, { ...newUser, id: prev.length + 1 }]);
+      setNewUser(null);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-16">
       <h1 className="text-2xl font-bold text-gray-900">Users</h1>
       <p className="text-sm text-gray-500">
         Manage admin users and their roles in the system.
       </p>
+
+      {/* Add Admin Button */}
+      <button
+        onClick={() =>
+          setNewUser({
+            id: 0,
+            photo: "",
+            name: "",
+            email: "",
+            phone: "",
+            status: "active",
+            about: "",
+            address: "",
+          })
+        }
+        className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+      >
+        <PlusCircle className="h-5 w-5 mr-2" /> Add Admin
+      </button>
 
       {/* Users Table */}
       <div className="overflow-x-auto bg-white rounded-lg shadow">
@@ -95,13 +122,16 @@ const Users = () => {
         </table>
       </div>
 
-      {/* Edit User Modal */}
-      {editUser && (
+      {/* Add Admin Modal */}
+      {newUser && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Edit User</h2>
-              <button onClick={() => setEditUser(null)} className="text-red-500 hover:text-red-700">
+              <h2 className="text-xl font-semibold">Add New Admin</h2>
+              <button
+                onClick={() => setNewUser(null)}
+                className="text-red-500 hover:text-red-700"
+              >
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
@@ -110,9 +140,9 @@ const Users = () => {
                 <span className="text-gray-700">Name</span>
                 <input
                   type="text"
-                  value={editUser.name}
+                  value={newUser.name}
                   onChange={(e) =>
-                    setEditUser({ ...editUser, name: e.target.value })
+                    setNewUser({ ...newUser, name: e.target.value })
                   }
                   className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"
                 />
@@ -121,9 +151,9 @@ const Users = () => {
                 <span className="text-gray-700">Email</span>
                 <input
                   type="text"
-                  value={editUser.email}
+                  value={newUser.email}
                   onChange={(e) =>
-                    setEditUser({ ...editUser, email: e.target.value })
+                    setNewUser({ ...newUser, email: e.target.value })
                   }
                   className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"
                 />
@@ -132,9 +162,9 @@ const Users = () => {
                 <span className="text-gray-700">Phone</span>
                 <input
                   type="text"
-                  value={editUser.phone}
+                  value={newUser.phone}
                   onChange={(e) =>
-                    setEditUser({ ...editUser, phone: e.target.value })
+                    setNewUser({ ...newUser, phone: e.target.value })
                   }
                   className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"
                 />
@@ -142,20 +172,9 @@ const Users = () => {
               <label className="block">
                 <span className="text-gray-700">About</span>
                 <textarea
-                  value={editUser.about}
+                  value={newUser.about}
                   onChange={(e) =>
-                    setEditUser({ ...editUser, about: e.target.value })
-                  }
-                  className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"
-                />
-              </label>
-              <label className="block">
-                <span className="text-gray-700">Address</span>
-                <input
-                  type="text"
-                  value={editUser.address}
-                  onChange={(e) =>
-                    setEditUser({ ...editUser, address: e.target.value })
+                    setNewUser({ ...newUser, about: e.target.value })
                   }
                   className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"
                 />
@@ -163,10 +182,10 @@ const Users = () => {
             </div>
             <div className="mt-4 flex justify-end">
               <button
-                onClick={handleSaveChanges}
+                onClick={handleAddUser}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Save Changes
+                Add Admin
               </button>
             </div>
           </div>
