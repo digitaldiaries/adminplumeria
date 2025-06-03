@@ -17,7 +17,7 @@ import Categories from './pages/Categories';
 import CategoryForm from './pages/CategoryForm';
 import Packages from './pages/Packages';
 import PackageForm from './pages/PackageForm';
-// import Users from './pages/Users';
+import Users from './pages/Users';
 import UserForm from './pages/UserForm';
 import NotFound from './pages/NotFound';
 
@@ -46,7 +46,7 @@ function App() {
           <Route path="packages" element={<Packages />} />
           <Route path="packages/new" element={<PackageForm />} />
           <Route path="packages/:id" element={<PackageForm />} />
-          {/* <Route path="users" element={<Users />} /> */}
+          <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserForm />} />
           <Route path="*" element={<NotFound />} />
         </Route>
