@@ -32,7 +32,7 @@ interface CouponFormData {
   expiryDate: string;
 }
 
-const API_BASE_URL = 'http://localhost:5001/admin';
+const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
 
 const defaultCoupon: CouponFormData = {
   code: '',
