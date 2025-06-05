@@ -12,7 +12,10 @@ import {
   FileText,
   Grid,
   Package,
-  Users
+  Users,
+  Wifi,
+  MapPin,
+  Star
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +31,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
     { name: 'Services', path: '/services', icon: <Coffee size={20} /> },
     { name: 'Bookings', path: '/bookings', icon: <Calendar size={20} /> },
     { name: 'Calendar', path: '/calendar', icon: <Calendar size={20} /> },
+    { name: 'Amenities', path: '/amenities', icon: <Wifi size={20} /> },
+    { name: 'Cities', path: '/cities', icon: <MapPin size={20} /> },
+    { name: 'Ratings', path: '/ratings', icon: <Star size={20} /> },
     { name: 'Coupons', path: '/coupons', icon: <Ticket size={20} /> },
     { name: 'Blogs', path: '/blogs', icon: <FileText size={20} /> },
     { name: 'Categories', path: '/categories', icon: <Grid size={20} /> },
