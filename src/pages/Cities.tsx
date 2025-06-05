@@ -10,10 +10,10 @@ interface City {
 
 const Cities = () => {
   const [cities, setCities] = useState<City[]>([
-    { id: 1, name: 'Mumbai', country: 'India', active: true },
-    { id: 2, name: 'Delhi', country: 'India', active: true },
-    { id: 3, name: 'Bangalore', country: 'India', active: true },
-    { id: 4, name: 'Kolkata', country: 'India', active: true },
+    { id: 1, name: 'Pawna', country: 'India', active: true },
+    { id: 2, name: 'Lonavala', country: 'India', active: true },
+    { id: 3, name: 'Pune', country: 'India', active: true },
+    { id: 4, name: 'Ambi Valley', country: 'India', active: true },
   ]);
 
   const [showAddModal, setShowAddModal] = useState(false);

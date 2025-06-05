@@ -19,6 +19,9 @@ import Packages from './pages/Packages';
 import PackageForm from './pages/PackageForm';
 import Users from './pages/Users';
 import UserForm from './pages/UserForm';
+import Amenities from './pages/Amenities';
+import Cities from './pages/Cities';
+import Ratings from './pages/Ratings';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -37,6 +40,9 @@ function App() {
           <Route path="bookings" element={<Bookings />} />
           <Route path="bookings/new" element={<CreateBooking />} />
           <Route path="calendar" element={<Calendar />} />
+          <Route path="amenities" element={<Amenities />} />
+          <Route path="cities" element={<Cities />} />
+          <Route path="ratings" element={<Ratings />} />
           <Route path="coupons" element={<Coupons />} />
           <Route path="blogs" element={<Blogs />} />
           <Route path="blogs/new" element={<BlogForm />} />

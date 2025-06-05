@@ -10,8 +10,8 @@ interface Amenity {
 
 const Amenities = () => {
   const [amenities, setAmenities] = useState<Amenity[]>([
-    { id: 1, name: 'WiFi', icon: 'utensils', active: true },
-    { id: 2, name: 'Swimming Pool', icon: 'water', active: true },
+    { id: 1, name: 'WiFi', icon: 'wifi', active: true },
+    { id: 2, name: 'Swimming Pool', icon: 'flame', active: true },
     { id: 3, name: 'Music System', icon: 'music', active: true },
     { id: 4, name: 'Dinner', icon: 'utensils', active: true },
     { id: 5, name: 'Bonfire', icon: 'flame', active: true },
