@@ -25,9 +25,9 @@ const Layout: React.FC = () => {
         </main>
         
         {/* Mobile navigation */}
-        <div className="md:hidden">
+        {/* <div className="md:hidden">
           <MobileNav />
-        </div>
+        </div> */}
       </div>
     </div>
   );

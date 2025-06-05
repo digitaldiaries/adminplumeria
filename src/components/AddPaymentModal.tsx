@@ -24,7 +24,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
   booking, 
   onClose, 
   onPaymentAdded,
-  apiBaseUrl = 'http://localhost:5000/api'
+  apiBaseUrl = 'http://localhost:5000/admin'
 }) => {
   const [paymentType, setPaymentType] = useState<'full' | 'partial'>('full');
   const [paymentMethod, setPaymentMethod] = useState('');
