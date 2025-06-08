@@ -1,11 +1,20 @@
 import React from 'react';
-import { Menu, Bell, User } from 'lucide-react';
+import { Menu, Bell, User, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface HeaderProps {
   toggleSidebar: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+    }
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 z-10">
       <div className="px-4 sm:px-6 lg:px-8">
@@ -29,11 +38,18 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             </button>
             <div className="flex items-center space-x-2">
               <span className="hidden md:block text-sm font-medium text-gray-700">
-                Admin User
+                {user?.name || 'Admin User'}
               </span>
               <div className="h-8 w-8 rounded-full bg-blue-700 flex items-center justify-center text-white">
                 <User className="h-5 w-5" />
               </div>
+              <button
+                onClick={handleLogout}
+                className="text-gray-500 hover:text-gray-600 focus:outline-none ml-2"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
