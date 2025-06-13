@@ -11,7 +11,6 @@ import {
   Ticket,
   FileText,
   Grid,
-  Package,
   Users,
   Wifi,
   MapPin,
@@ -37,7 +36,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
     { name: 'Coupons', path: '/coupons', icon: <Ticket size={20} /> },
     { name: 'Blogs', path: '/blogs', icon: <FileText size={20} /> },
     { name: 'Categories', path: '/categories', icon: <Grid size={20} /> },
-    { name: 'Packages', path: '/packages', icon: <Package size={20} /> },
     { name: 'Users', path: '/users', icon: <Users size={20} /> },
   ];
 

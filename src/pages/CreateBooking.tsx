@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Building2, User, CreditCard } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, User, CreditCard, UtensilsCrossed } from 'lucide-react';
 
 interface Accommodation {
   id: number;
@@ -18,6 +18,15 @@ interface MealPlan {
   description: string;
   price: number;
 }
+
+interface Coupon {
+  id: number;
+  code: string;
+  discount: number;
+  discountType: 'percentage' | 'fixed';
+  active: boolean;
+}
+
 const _BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/bookings';
 
 const CreateBooking: React.FC = () => {
@@ -25,6 +34,7 @@ const CreateBooking: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [formData, setFormData] = useState({
     guestName: '',
     email: '',
@@ -36,9 +46,14 @@ const CreateBooking: React.FC = () => {
     children: 0,
     rooms: 1,
     mealPlanId: '',
+    vegCount: 0,
+    nonVegCount: 0,
+    jainCount: 0,
     totalAmount: '',
     paymentAmount: '',
+    paymentType: 'full',
     paymentMethod: '',
+    couponId: '',
     transactionId: '',
     notes: ''
   });
@@ -52,7 +67,7 @@ const CreateBooking: React.FC = () => {
     { id: 'bank', name: 'Bank Transfer' }
   ];
 
-  // Fetch accommodations and meal plans on component mount
+  // Fetch accommodations, meal plans, and coupons on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -71,9 +86,16 @@ const CreateBooking: React.FC = () => {
           const mealPlansData = await mealPlansResponse.json();
           setMealPlans(mealPlansData);
         }
+
+        // Fetch coupons
+        const couponsResponse = await fetch(`${_BASE_URL}/coupons`);
+        if (couponsResponse.ok) {
+          const couponsData = await couponsResponse.json();
+          setCoupons(couponsData.filter((coupon: Coupon) => coupon.active));
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
-        alert('Failed to fetch accommodation and meal plan data');
+        alert('Failed to fetch data');
       } finally {
         setLoading(false);
       }
@@ -136,9 +158,14 @@ const CreateBooking: React.FC = () => {
         children: parseInt(formData.children.toString()),
         rooms: parseInt(formData.rooms.toString()),
         mealPlanId: formData.mealPlanId ? parseInt(formData.mealPlanId) : null,
+        vegCount: parseInt(formData.vegCount.toString()),
+        nonVegCount: parseInt(formData.nonVegCount.toString()),
+        jainCount: parseInt(formData.jainCount.toString()),
         totalAmount: parseFloat(formData.totalAmount),
         paymentAmount: formData.paymentAmount ? parseFloat(formData.paymentAmount) : null,
+        paymentType: formData.paymentType,
         paymentMethod: formData.paymentMethod || null,
+        couponId: formData.couponId ? parseInt(formData.couponId) : null,
         transactionId: formData.transactionId || null,
         notes: formData.notes
       };
@@ -382,6 +409,63 @@ const CreateBooking: React.FC = () => {
           </div>
         </div>
 
+        {/* Food Preference */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="p-6 space-y-6">
+            <div className="flex items-center mb-4">
+              <UtensilsCrossed className="h-5 w-5 text-navy-600 mr-2" />
+              <h2 className="text-lg font-medium text-gray-900">Food Preference</h2>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+              <div>
+                <label htmlFor="vegCount" className="block text-sm font-medium text-gray-700">
+                  Veg Count
+                </label>
+                <input
+                  type="number"
+                  id="vegCount"
+                  name="vegCount"
+                  min="0"
+                  value={formData.vegCount}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="nonVegCount" className="block text-sm font-medium text-gray-700">
+                  Non-Veg Count
+                </label>
+                <input
+                  type="number"
+                  id="nonVegCount"
+                  name="nonVegCount"
+                  min="0"
+                  value={formData.nonVegCount}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="jainCount" className="block text-sm font-medium text-gray-700">
+                  Jain Count
+                </label>
+                <input
+                  type="number"
+                  id="jainCount"
+                  name="jainCount"
+                  min="0"
+                  value={formData.jainCount}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Payment Information */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
@@ -405,6 +489,42 @@ const CreateBooking: React.FC = () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
                   required
                 />
+              </div>
+
+              <div>
+                <label htmlFor="couponId" className="block text-sm font-medium text-gray-700">
+                  Coupon (Optional)
+                </label>
+                <select
+                  id="couponId"
+                  name="couponId"
+                  value={formData.couponId}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
+                >
+                  <option value="">No Coupon</option>
+                  {coupons.map(coupon => (
+                    <option key={coupon.id} value={coupon.id}>
+                      {coupon.code} - {coupon.discountType === 'percentage' ? `${coupon.discount}%` : `₹${coupon.discount}`} off
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="paymentType" className="block text-sm font-medium text-gray-700">
+                  Payment Type
+                </label>
+                <select
+                  id="paymentType"
+                  name="paymentType"
+                  value={formData.paymentType}
+                  onChange={handleChange}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
+                >
+                  <option value="full">Full Payment</option>
+                  <option value="partial">Partial Payment</option>
+                </select>
               </div>
 
               <div>

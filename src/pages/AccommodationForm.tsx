@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2, MapPin, Users, Package } from 'lucide-react';
 
 // admin base URL - adjust this to match your backend URL
 const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app';
@@ -18,6 +18,36 @@ interface Accommodation {
   features: string[];
   images: string[];
   available: boolean;
+  ownerId?: number;
+  cityId?: number;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  amenityIds?: number[];
+  packageName?: string;
+  packageDescription?: string;
+  packageImages?: string[];
+  adultPrice?: number;
+  childPrice?: number;
+  maxGuests?: number;
+}
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface City {
+  id: number;
+  name: string;
+  country: string;
+}
+
+interface Amenity {
+  id: number;
+  name: string;
+  icon: string;
 }
 
 const AccommodationForm: React.FC = () => {
@@ -36,11 +66,27 @@ const AccommodationForm: React.FC = () => {
     price: 0,
     features: [],
     images: [],
-    available: true
+    available: true,
+    ownerId: undefined,
+    cityId: undefined,
+    address: '',
+    latitude: undefined,
+    longitude: undefined,
+    amenityIds: [],
+    packageName: '',
+    packageDescription: '',
+    packageImages: [],
+    adultPrice: 0,
+    childPrice: 0,
+    maxGuests: 2
   });
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [newFeature, setNewFeature] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [newPackageImageUrl, setNewPackageImageUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -54,6 +100,13 @@ const AccommodationForm: React.FC = () => {
       fetchAccommodation(id);
     }
   }, [isEditing, id]);
+
+  // Fetch users, cities, and amenities
+  useEffect(() => {
+    fetchUsers();
+    fetchCities();
+    fetchAmenities();
+  }, []);
 
   const fetchAccommodation = async (accommodationId: string) => {
     setFetching(true);
@@ -81,13 +134,61 @@ const AccommodationForm: React.FC = () => {
         price: data.price || 0,
         features: data.features || [],
         images: data.images || [],
-        available: data.available !== undefined ? data.available : true
+        available: data.available !== undefined ? data.available : true,
+        ownerId: data.ownerId,
+        cityId: data.cityId,
+        address: data.address || '',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        amenityIds: data.amenityIds || [],
+        packageName: data.packageName || '',
+        packageDescription: data.packageDescription || '',
+        packageImages: data.packageImages || [],
+        adultPrice: data.adultPrice || 0,
+        childPrice: data.childPrice || 0,
+        maxGuests: data.maxGuests || 2
       });
     } catch (error) {
       console.error('Error fetching accommodation:', error);
       setSubmitError('Failed to load accommodation data');
     } finally {
       setFetching(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${admin_BASE_URL}/admin/users`);
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchCities = async () => {
+    try {
+      const response = await fetch(`${admin_BASE_URL}/admin/cities`);
+      if (response.ok) {
+        const data = await response.json();
+        setCities(data);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
+
+  const fetchAmenities = async () => {
+    try {
+      const response = await fetch(`${admin_BASE_URL}/admin/amenities`);
+      if (response.ok) {
+        const data = await response.json();
+        setAmenities(data);
+      }
+    } catch (error) {
+      console.error('Error fetching amenities:', error);
     }
   };
 
@@ -99,10 +200,15 @@ const AccommodationForm: React.FC = () => {
         ...formData,
         [name]: (e.target as HTMLInputElement).checked,
       });
-    } else if (name === 'price' || name === 'capacity' || name === 'bedrooms' || name === 'bathrooms' || name === 'size') {
+    } else if (name === 'price' || name === 'capacity' || name === 'bedrooms' || name === 'bathrooms' || name === 'size' || name === 'latitude' || name === 'longitude' || name === 'adultPrice' || name === 'childPrice' || name === 'maxGuests') {
       setFormData({
         ...formData,
         [name]: value === '' ? 0 : Number(value),
+      });
+    } else if (name === 'ownerId' || name === 'cityId') {
+      setFormData({
+        ...formData,
+        [name]: value === '' ? undefined : Number(value),
       });
     } else {
       setFormData({
@@ -116,6 +222,21 @@ const AccommodationForm: React.FC = () => {
       setErrors({
         ...errors,
         [name]: ''
+      });
+    }
+  };
+
+  const handleAmenityChange = (amenityId: number) => {
+    const currentAmenities = formData.amenityIds || [];
+    if (currentAmenities.includes(amenityId)) {
+      setFormData({
+        ...formData,
+        amenityIds: currentAmenities.filter(id => id !== amenityId)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        amenityIds: [...currentAmenities, amenityId]
       });
     }
   };
@@ -137,61 +258,13 @@ const AccommodationForm: React.FC = () => {
     });
   };
 
-  const handleImageUpload = async (file: File | string) => {
-    setUploading(true);
-    try {
-      const uploadFormData = new FormData();
-      
-      if (typeof file === 'string') {
-        // Handle URL upload
-        const response = await fetch(`${admin_BASE_URL}/admin/accommodations/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            imageUrl: file,
-            title: formData.name || 'Accommodation Image',
-            alt_text: formData.name || 'Accommodation Image',
-            description: formData.description || ''
-          }),
-        });
-        
-        const data = await response.json();
-        if (data.imageUrl) {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, data.imageUrl]
-          }));
-        }
-      } else {
-        // Handle file upload
-        uploadFormData.append('image', file);
-        uploadFormData.append('title', formData.name || 'Accommodation Image');
-        uploadFormData.append('alt_text', formData.name || 'Accommodation Image');
-        uploadFormData.append('description', formData.description || '');
-        
-        const response = await fetch(`${admin_BASE_URL}/admin/accommodations/upload`, {
-          method: 'POST',
-          body: uploadFormData,
-        });
-        
-        const data = await response.json();
-        if (data.imageUrl) {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, data.imageUrl]
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      setErrors(prev => ({
-        ...prev,
-        imageUrl: 'Failed to upload image'
-      }));
-    } finally {
-      setUploading(false);
+  const addImage = () => {
+    if (newImageUrl.trim() && !formData.images.includes(newImageUrl.trim())) {
+      setFormData({
+        ...formData,
+        images: [...formData.images, newImageUrl.trim()],
+      });
+      setNewImageUrl('');
     }
   };
 
@@ -199,6 +272,23 @@ const AccommodationForm: React.FC = () => {
     setFormData({
       ...formData,
       images: formData.images.filter((img) => img !== image),
+    });
+  };
+
+  const addPackageImage = () => {
+    if (newPackageImageUrl.trim() && !formData.packageImages?.includes(newPackageImageUrl.trim())) {
+      setFormData({
+        ...formData,
+        packageImages: [...(formData.packageImages || []), newPackageImageUrl.trim()],
+      });
+      setNewPackageImageUrl('');
+    }
+  };
+
+  const removePackageImage = (image: string) => {
+    setFormData({
+      ...formData,
+      packageImages: formData.packageImages?.filter((img) => img !== image) || [],
     });
   };
 
@@ -300,13 +390,13 @@ const AccommodationForm: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-2xl font-bold text-gray-900">
-              {isEditing ? 'Edit Accommodation' : 'Add New Accommodation'}
+              {isEditing ? 'Edit Property' : 'Add New Property'}
             </h1>
           </div>
           <p className="mt-1 text-sm text-gray-500">
             {isEditing
-              ? 'Update accommodation details'
-              : 'Create a new accommodation for your resort'}
+              ? 'Update property details'
+              : 'Create a new property for your resort'}
           </p>
         </div>
       </div>
@@ -325,13 +415,17 @@ const AccommodationForm: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Basic Information */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
-            <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Basic Information</h2>
+            <div className="flex items-center mb-4">
+              <Building2 className="h-5 w-5 text-blue-600 mr-2" />
+              <h2 className="text-lg font-medium text-gray-900">Basic Information</h2>
+            </div>
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
               <div className="sm:col-span-4">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Accommodation Name *
+                  Property Name *
                 </label>
                 <div className="mt-1">
                   <input
@@ -391,6 +485,28 @@ const AccommodationForm: React.FC = () => {
                     }`}
                   />
                   {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="ownerId" className="block text-sm font-medium text-gray-700">
+                  Select Owner
+                </label>
+                <div className="mt-1">
+                  <select
+                    id="ownerId"
+                    name="ownerId"
+                    value={formData.ownerId || ''}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="">Select Owner</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -511,11 +627,100 @@ const AccommodationForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Features */}
+        {/* Location */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="p-6 space-y-6">
+            <div className="flex items-center mb-4">
+              <MapPin className="h-5 w-5 text-blue-600 mr-2" />
+              <h2 className="text-lg font-medium text-gray-900">Location</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              <div className="sm:col-span-3">
+                <label htmlFor="cityId" className="block text-sm font-medium text-gray-700">
+                  City
+                </label>
+                <div className="mt-1">
+                  <select
+                    id="cityId"
+                    name="cityId"
+                    value={formData.cityId || ''}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="">Select City</option>
+                    {cities.map(city => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}, {city.country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                  Address
+                </label>
+                <div className="mt-1">
+                  <textarea
+                    id="address"
+                    name="address"
+                    rows={2}
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="Enter full address"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="latitude" className="block text-sm font-medium text-gray-700">
+                  Latitude
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    name="latitude"
+                    id="latitude"
+                    step="any"
+                    value={formData.latitude || ''}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="e.g., 18.5204"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="longitude" className="block text-sm font-medium text-gray-700">
+                  Longitude
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    name="longitude"
+                    id="longitude"
+                    step="any"
+                    value={formData.longitude || ''}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="e.g., 73.8567"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features & Amenities */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
             <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Features & Amenities</h2>
+            
+            {/* Custom Features */}
             <div className="space-y-4">
+              <h3 className="text-md font-medium text-gray-700">Custom Features</h3>
               <div className="flex flex-wrap gap-2">
                 {formData.features.map((feature) => (
                   <div
@@ -538,7 +743,7 @@ const AccommodationForm: React.FC = () => {
                   type="text"
                   value={newFeature}
                   onChange={(e) => setNewFeature(e.target.value)}
-                  placeholder="Add a feature (e.g., WiFi, Pool)"
+                  placeholder="Add a custom feature"
                   className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md rounded-r-none"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
@@ -556,110 +761,216 @@ const AccommodationForm: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Amenities */}
+            <div className="space-y-4">
+              <h3 className="text-md font-medium text-gray-700">Amenities</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {amenities.map((amenity) => (
+                  <div key={amenity.id} className="flex items-center">
+                    <input
+                      id={`amenity-${amenity.id}`}
+                      type="checkbox"
+                      checked={formData.amenityIds?.includes(amenity.id) || false}
+                      onChange={() => handleAmenityChange(amenity.id)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor={`amenity-${amenity.id}`} className="ml-2 block text-sm text-gray-700">
+                      {amenity.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Images */}
+        {/* Package */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
-            <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Images</h2>
-            
-            {/* Image Upload Method Toggle */}
-            <div className="flex space-x-4 mb-4">
-              <button
-                type="button"
-                onClick={() => setUploadMethod('file')}
-                className={`px-4 py-2 rounded-md ${
-                  uploadMethod === 'file'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                Upload File
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMethod('url')}
-                className={`px-4 py-2 rounded-md ${
-                  uploadMethod === 'url'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                Add URL
-              </button>
+            <div className="flex items-center mb-4">
+              <Package className="h-5 w-5 text-blue-600 mr-2" />
+              <h2 className="text-lg font-medium text-gray-900">Package Details</h2>
             </div>
-
-            {/* File Upload */}
-            {uploadMethod === 'file' && (
-              <div className="mt-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleImageUpload(file);
-                    }
-                  }}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
+            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              <div className="sm:col-span-3">
+                <label htmlFor="packageName" className="block text-sm font-medium text-gray-700">
+                  Package Name
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    name="packageName"
+                    id="packageName"
+                    value={formData.packageName}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="e.g., Weekend Getaway Package"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* URL Upload */}
-            {uploadMethod === 'url' && (
+              <div className="sm:col-span-3">
+                <label htmlFor="maxGuests" className="block text-sm font-medium text-gray-700">
+                  No. of Guests
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    name="maxGuests"
+                    id="maxGuests"
+                    min="1"
+                    value={formData.maxGuests}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label htmlFor="packageDescription" className="block text-sm font-medium text-gray-700">
+                  Package Description
+                </label>
+                <div className="mt-1">
+                  <textarea
+                    id="packageDescription"
+                    name="packageDescription"
+                    rows={3}
+                    value={formData.packageDescription}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="Describe what's included in this package"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="adultPrice" className="block text-sm font-medium text-gray-700">
+                  Adult Price (₹)
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    name="adultPrice"
+                    id="adultPrice"
+                    min="0"
+                    step="0.01"
+                    value={formData.adultPrice}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="childPrice" className="block text-sm font-medium text-gray-700">
+                  Child Price (₹)
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    name="childPrice"
+                    id="childPrice"
+                    min="0"
+                    step="0.01"
+                    value={formData.childPrice}
+                    onChange={handleChange}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              {/* Package Images */}
+              <div className="sm:col-span-6">
+                <label className="block text-sm font-medium text-gray-700">Package Images</label>
+                <div className="mt-2 space-y-2">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={newPackageImageUrl}
+                      onChange={(e) => setNewPackageImageUrl(e.target.value)}
+                      placeholder="Add package image URL"
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={addPackageImage}
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                    {formData.packageImages?.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image}
+                          alt={`Package ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePackageImage(image)}
+                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Property Images */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="p-6 space-y-6">
+            <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Property Images</h2>
+            
+            <div className="space-y-4">
               <div className="flex space-x-2">
                 <input
                   type="text"
                   value={newImageUrl}
                   onChange={(e) => setNewImageUrl(e.target.value)}
-                  placeholder="Enter image URL"
-                  className="flex-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  placeholder="Add image URL"
+                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (newImageUrl.trim()) {
-                      handleImageUpload(newImageUrl.trim());
-                      setNewImageUrl('');
-                    }
-                  }}
-                  disabled={uploading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  onClick={addImage}
+                  className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  {uploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
+                  <Plus className="h-4 w-4" />
                 </button>
               </div>
-            )}
 
-            {/* Image Preview Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-              {formData.images.map((image, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={image}
-                    alt={`Accommodation ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(image)}
-                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+              {/* Image Preview Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                {formData.images.map((image, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={image}
+                      alt={`Property ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(image)}
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              {errors.images && (
+                <p className="mt-1 text-sm text-red-600">{errors.images}</p>
+              )}
             </div>
-            
-            {errors.images && (
-              <p className="mt-1 text-sm text-red-600">{errors.images}</p>
-            )}
           </div>
         </div>
 
@@ -684,7 +995,7 @@ const AccommodationForm: React.FC = () => {
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                {isEditing ? 'Update Accommodation' : 'Create Accommodation'}
+                {isEditing ? 'Update Property' : 'Create Property'}
               </>
             )}
           </button>

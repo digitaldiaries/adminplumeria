@@ -17,8 +17,6 @@ import Blogs from './pages/Blogs';
 import BlogForm from './pages/BlogForm';
 import Categories from './pages/Categories';
 import CategoryForm from './pages/CategoryForm';
-import Packages from './pages/Packages';
-import PackageForm from './pages/PackageForm';
 import Users from './pages/Users';
 import UserForm from './pages/UserForm';
 import Amenities from './pages/Amenities';
@@ -53,9 +51,6 @@ function App() {
               <Route path="blogs/:id" element={<BlogForm />} />
               <Route path="categories" element={<Categories />} />
               <Route path="categories/:id" element={<CategoryForm />} />
-              <Route path="packages" element={<Packages />} />
-              <Route path="packages/new" element={<PackageForm />} />
-              <Route path="packages/:id" element={<PackageForm />} />
               <Route path="users" element={<Users />} />
               <Route path="users/:id" element={<UserForm />} />
               <Route path="*" element={<NotFound />} />

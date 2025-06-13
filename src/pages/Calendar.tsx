@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
 const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
+
+interface Accommodation {
+  id: number;
+  name: string;
+  type: string;
+}
 
 const Calendar = () => {
   const [selectedDays, setSelectedDays] = useState<Date[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [reason, setReason] = useState('');
+  const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,8 +43,22 @@ const Calendar = () => {
     }
   };
 
+  // Fetch accommodations
+  const fetchAccommodations = async () => {
+    try {
+      const response = await fetch(`${admin_BASE_URL}/accommodations`);
+      if (response.ok) {
+        const data = await response.json();
+        setAccommodations(data);
+      }
+    } catch (err) {
+      console.error('Error fetching accommodations:', err);
+    }
+  };
+
   useEffect(() => {
     fetchBlockedDates();
+    fetchAccommodations();
   }, []);
 
   // Clear messages after 5 seconds
@@ -54,6 +76,8 @@ const Calendar = () => {
     id: number;
     blocked_date: string;
     reason?: string;
+    accommodation_id?: number;
+    accommodation_name?: string;
   }
 
   const handleDayClick = (day: Date) => {
@@ -66,6 +90,7 @@ const Calendar = () => {
       if (blockedDate) {
         setEditingDate(blockedDate);
         setReason(blockedDate.reason || '');
+        setSelectedAccommodationId(blockedDate.accommodation_id || null);
         setShowForm(true);
       }
       return;
@@ -101,7 +126,10 @@ const Calendar = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ reason }),
+          body: JSON.stringify({ 
+            reason,
+            accommodation_id: selectedAccommodationId 
+          }),
         });
 
         const data = await response.json();
@@ -121,7 +149,11 @@ const Calendar = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ dates, reason }),
+          body: JSON.stringify({ 
+            dates, 
+            reason,
+            accommodation_id: selectedAccommodationId 
+          }),
         });
 
         const data = await response.json();
@@ -150,6 +182,7 @@ const Calendar = () => {
       setShowForm(false);
       setEditingDate(null);
       setReason('');
+      setSelectedAccommodationId(null);
     }
   };
 
@@ -184,6 +217,7 @@ const Calendar = () => {
     setShowForm(false);
     setSelectedDays([]);
     setReason('');
+    setSelectedAccommodationId(null);
     setEditingDate(null);
   };
 
@@ -245,7 +279,7 @@ const Calendar = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Manage Calendar</h1>
-        <p className="mt-2 text-gray-600">Block dates when the resort is unavailable</p>
+        <p className="mt-2 text-gray-600">Block dates when properties are unavailable</p>
       </div>
 
       {/* Alerts */}
@@ -384,6 +418,25 @@ const Calendar = () => {
                 </div>
 
                 <div>
+                  <label htmlFor="accommodationSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Accommodation
+                  </label>
+                  <select
+                    id="accommodationSelect"
+                    value={selectedAccommodationId || ''}
+                    onChange={(e) => setSelectedAccommodationId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">All Properties</option>
+                    {accommodations.map(accommodation => (
+                      <option key={accommodation.id} value={accommodation.id}>
+                        {accommodation.name} ({accommodation.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
                     Reason for Blocking
                   </label>
@@ -438,6 +491,12 @@ const Calendar = () => {
                       <div className="font-medium text-sm text-gray-900">
                         {format(new Date(date.blocked_date), 'MMMM d, yyyy')}
                       </div>
+                      {date.accommodation_name && (
+                        <div className="text-xs text-blue-600 flex items-center mt-1">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {date.accommodation_name}
+                        </div>
+                      )}
                       {date.reason && (
                         <div className="text-xs text-gray-600 mt-1">
                           {date.reason}
@@ -449,6 +508,7 @@ const Calendar = () => {
                         onClick={() => {
                           setEditingDate(date);
                           setReason(date.reason || '');
+                          setSelectedAccommodationId(date.accommodation_id || null);
                           setShowForm(true);
                         }}
                         disabled={loading}
