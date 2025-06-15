@@ -560,33 +560,14 @@ const CreateBooking: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label htmlFor="transactionId" className="block text-sm font-medium text-gray-700">
-                  Transaction ID
-                </label>
-                <input
-                  type="text"
-                  id="transactionId"
-                  name="transactionId"
-                  value={formData.transactionId}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                  Special Requests / Notes
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
-                  value={formData.notes}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm"
-                />
-              </div>
+              {/* Hidden Transaction ID */}
+              <input
+                type="hidden"
+                id="transactionId"
+                name="transactionId"
+                value={formData.transactionId}
+                readOnly
+              />
             </div>
           </div>
         </div>

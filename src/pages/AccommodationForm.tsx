@@ -11,10 +11,8 @@ interface Accommodation {
   description: string;
   type: string;
   capacity: number;
-  bedrooms: number;
-  bathrooms: number;
-  size: number;
-  price: number;
+  rooms: number; // renamed from bedrooms
+  price: number; // per night per person
   features: string[];
   images: string[];
   available: boolean;
@@ -60,9 +58,7 @@ const AccommodationForm: React.FC = () => {
     description: '',
     type: '',
     capacity: 2,
-    bedrooms: 1,
-    bathrooms: 1,
-    size: 0,
+    rooms: 1, // was bedrooms
     price: 0,
     features: [],
     images: [],
@@ -83,7 +79,14 @@ const AccommodationForm: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [amenities, setAmenities] = useState<Amenity[]>([]);
+  const [amenities, setAmenities] = useState<Amenity[]>([
+    { id: 1, name: 'WiFi', icon: 'wifi' },
+    { id: 2, name: 'Swimming Pool', icon: 'flame' },
+    { id: 3, name: 'Music System', icon: 'music' },
+    { id: 4, name: 'Dinner', icon: 'utensils' },
+    { id: 5, name: 'Bonfire', icon: 'flame' },
+    { id: 6, name: 'BBQ', icon: 'coffee' },
+  ]);
   const [newFeature, setNewFeature] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [newPackageImageUrl, setNewPackageImageUrl] = useState('');
@@ -105,7 +108,7 @@ const AccommodationForm: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchCities();
-    fetchAmenities();
+    // Removed fetchAmenities as amenities are now hardcoded
   }, []);
 
   const fetchAccommodation = async (accommodationId: string) => {
@@ -128,9 +131,7 @@ const AccommodationForm: React.FC = () => {
         description: data.description || '',
         type: data.type || '',
         capacity: data.capacity || 2,
-        bedrooms: data.bedrooms || 1,
-        bathrooms: data.bathrooms || 1,
-        size: data.size || 0,
+        rooms: data.rooms || 1, // was bedrooms
         price: data.price || 0,
         features: data.features || [],
         images: data.images || [],
@@ -180,18 +181,6 @@ const AccommodationForm: React.FC = () => {
     }
   };
 
-  const fetchAmenities = async () => {
-    try {
-      const response = await fetch(`${admin_BASE_URL}/admin/amenities`);
-      if (response.ok) {
-        const data = await response.json();
-        setAmenities(data);
-      }
-    } catch (error) {
-      console.error('Error fetching amenities:', error);
-    }
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -200,7 +189,7 @@ const AccommodationForm: React.FC = () => {
         ...formData,
         [name]: (e.target as HTMLInputElement).checked,
       });
-    } else if (name === 'price' || name === 'capacity' || name === 'bedrooms' || name === 'bathrooms' || name === 'size' || name === 'latitude' || name === 'longitude' || name === 'adultPrice' || name === 'childPrice' || name === 'maxGuests') {
+    } else if (name === 'price' || name === 'capacity' || name === 'rooms' || name === 'latitude' || name === 'longitude' || name === 'adultPrice' || name === 'childPrice' || name === 'maxGuests') {
       setFormData({
         ...formData,
         [name]: value === '' ? 0 : Number(value),
@@ -310,11 +299,8 @@ const AccommodationForm: React.FC = () => {
     if (formData.capacity <= 0) {
       newErrors.capacity = 'Capacity must be greater than 0';
     }
-    if (formData.bedrooms <= 0) {
-      newErrors.bedrooms = 'Bedrooms must be greater than 0';
-    }
-    if (formData.bathrooms <= 0) {
-      newErrors.bathrooms = 'Bathrooms must be greater than 0';
+    if (formData.rooms <= 0) {
+      newErrors.rooms = 'Rooms must be greater than 0';
     }
     if (formData.images.length === 0) {
       newErrors.images = 'At least one image is required';
@@ -531,65 +517,28 @@ const AccommodationForm: React.FC = () => {
               </div>
 
               <div className="sm:col-span-1">
-                <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-700">
-                  Bedrooms *
+                <label htmlFor="rooms" className="block text-sm font-medium text-gray-700">
+                  Rooms *
                 </label>
                 <div className="mt-1">
                   <input
                     type="number"
-                    name="bedrooms"
-                    id="bedrooms"
+                    name="rooms"
+                    id="rooms"
                     min="1"
-                    value={formData.bedrooms}
+                    value={formData.rooms}
                     onChange={handleChange}
                     className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.bedrooms ? 'border-red-300' : 'border-gray-300'
+                      errors.rooms ? 'border-red-300' : 'border-gray-300'
                     }`}
                   />
-                  {errors.bedrooms && <p className="mt-1 text-sm text-red-600">{errors.bedrooms}</p>}
-                </div>
-              </div>
-
-              <div className="sm:col-span-1">
-                <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-700">
-                  Bathrooms *
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    id="bathrooms"
-                    min="1"
-                    value={formData.bathrooms}
-                    onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.bathrooms ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.bathrooms && <p className="mt-1 text-sm text-red-600">{errors.bathrooms}</p>}
-                </div>
-              </div>
-
-              <div className="sm:col-span-1">
-                <label htmlFor="size" className="block text-sm font-medium text-gray-700">
-                  Size (m²)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="number"
-                    name="size"
-                    id="size"
-                    min="0"
-                    value={formData.size}
-                    onChange={handleChange}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  />
+                  {errors.rooms && <p className="mt-1 text-sm text-red-600">{errors.rooms}</p>}
                 </div>
               </div>
 
               <div className="sm:col-span-2">
                 <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                  Price per night (₹) *
+                  Price per night per person (₹) *
                 </label>
                 <div className="mt-1">
                   <input
@@ -765,21 +714,54 @@ const AccommodationForm: React.FC = () => {
             {/* Amenities */}
             <div className="space-y-4">
               <h3 className="text-md font-medium text-gray-700">Amenities</h3>
+              <select
+                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md mb-2"
+                onChange={e => {
+                  const amenityId = Number(e.target.value);
+                  if (
+                    amenityId &&
+                    !formData.amenityIds?.includes(amenityId)
+                  ) {
+                    setFormData({
+                      ...formData,
+                      amenityIds: [...(formData.amenityIds || []), amenityId],
+                    });
+                  }
+                  e.target.value = '';
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Add Amenity
+                </option>
+                {amenities
+                  .filter(a => !formData.amenityIds?.includes(a.id))
+                  .map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </select>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {amenities.map((amenity) => (
-                  <div key={amenity.id} className="flex items-center">
-                    <input
-                      id={`amenity-${amenity.id}`}
-                      type="checkbox"
-                      checked={formData.amenityIds?.includes(amenity.id) || false}
-                      onChange={() => handleAmenityChange(amenity.id)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor={`amenity-${amenity.id}`} className="ml-2 block text-sm text-gray-700">
-                      {amenity.name}
-                    </label>
-                  </div>
-                ))}
+                {amenities
+                  .filter(a => formData.amenityIds?.includes(a.id))
+                  .map(amenity => (
+                    <div key={amenity.id} className="flex items-center">
+                      <span className="mr-2">{amenity.name}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            amenityIds: formData.amenityIds?.filter(id => id !== amenity.id),
+                          })
+                        }
+                        className="ml-1.5 h-4 w-4 rounded-full text-blue-400 hover:text-blue-600 focus:outline-none"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
@@ -883,41 +865,56 @@ const AccommodationForm: React.FC = () => {
               {/* Package Images */}
               <div className="sm:col-span-6">
                 <label className="block text-sm font-medium text-gray-700">Package Images</label>
-                <div className="mt-2 space-y-2">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newPackageImageUrl}
-                      onChange={(e) => setNewPackageImageUrl(e.target.value)}
-                      placeholder="Add package image URL"
-                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    />
-                    <button
-                      type="button"
-                      onClick={addPackageImage}
-                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                    {formData.packageImages?.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={image}
-                          alt={`Package ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removePackageImage(image)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files) return;
+                    setUploading(true);
+                    const uploadedUrls: string[] = [];
+                    for (const file of Array.from(files)) {
+                      const formDataFile = new FormData();
+                      formDataFile.append('file', file);
+                      const res = await fetch(`${admin_BASE_URL}/admin/upload`, {
+                        method: 'POST',
+                        body: formDataFile,
+                      });
+                      const data = await res.json();
+                      if (data.url) uploadedUrls.push(data.url);
+                    }
+                    setFormData({
+                      ...formData,
+                      packageImages: [...(formData.packageImages || []), ...uploadedUrls],
+                    });
+                    setUploading(false);
+                  }}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                />
+                {uploading && <p className="text-blue-600 text-sm">Uploading...</p>}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                  {formData.packageImages?.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image}
+                        alt={`Package ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePackageImage(image)}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -928,26 +925,42 @@ const AccommodationForm: React.FC = () => {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
             <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Property Images</h2>
-            
             <div className="space-y-4">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  placeholder="Add image URL"
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                />
-                <button
-                  type="button"
-                  onClick={addImage}
-                  className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Image Preview Grid */}
+              <label className="block text-sm font-medium text-gray-700">Upload Images</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  setUploading(true);
+                  // Example: upload to your backend and get URLs
+                  const uploadedUrls: string[] = [];
+                  for (const file of Array.from(files)) {
+                    const formDataFile = new FormData();
+                    formDataFile.append('file', file);
+                    const res = await fetch(`${admin_BASE_URL}/admin/upload`, {
+                      method: 'POST',
+                      body: formDataFile,
+                    });
+                    const data = await res.json();
+                    if (data.url) uploadedUrls.push(data.url);
+                  }
+                  setFormData({
+                    ...formData,
+                    images: [...formData.images, ...uploadedUrls],
+                  });
+                  setUploading(false);
+                }}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-md file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+              {uploading && <p className="text-blue-600 text-sm">Uploading...</p>}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
                 {formData.images.map((image, index) => (
                   <div key={index} className="relative group">
@@ -966,7 +979,6 @@ const AccommodationForm: React.FC = () => {
                   </div>
                 ))}
               </div>
-              
               {errors.images && (
                 <p className="mt-1 text-sm text-red-600">{errors.images}</p>
               )}

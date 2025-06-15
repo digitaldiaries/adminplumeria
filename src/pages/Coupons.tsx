@@ -30,6 +30,7 @@ interface CouponFormData {
   usageLimit?: string;
   active: boolean;
   expiryDate: string;
+  accommodationType?: string; // <-- Add this line
 }
 
 const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
@@ -42,7 +43,8 @@ const defaultCoupon: CouponFormData = {
   maxDiscount: '',
   usageLimit: '',
   active: true,
-  expiryDate: ''
+  expiryDate: '',
+  accommodationType: 'all', // <-- Add this line
 };
 
 const Coupons: React.FC = () => {
@@ -218,6 +220,7 @@ const Coupons: React.FC = () => {
           usageLimit: newCoupon.usageLimit ? Number(newCoupon.usageLimit) : null,
           active: newCoupon.active,
           expiryDate: newCoupon.expiryDate,
+          accommodationType: newCoupon.accommodationType || 'all', // <-- Add this line
         }),
       });
 
@@ -261,6 +264,7 @@ const Coupons: React.FC = () => {
           usageLimit: editingCoupon.usageLimit ? Number(editingCoupon.usageLimit) : null,
           active: editingCoupon.active,
           expiryDate: editingCoupon.expiryDate,
+          accommodationType: editingCoupon.accommodationType || 'all', // <-- Add this line
         }),
       });
 
@@ -774,6 +778,25 @@ const Coupons: React.FC = () => {
                             min={new Date().toISOString().split('T')[0]}
                           />
                         </div>
+                        <div>
+                          <label htmlFor="accommodationType" className="block text-sm font-medium text-gray-700">
+                            Accommodation Type
+                          </label>
+                          <select
+                            id="accommodationType"
+                            name="accommodationType"
+                            value={newCoupon.accommodationType || 'all'}
+                            onChange={e => setNewCoupon({ ...newCoupon, accommodationType: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            required
+                          >
+                            <option value="all">All</option>
+                            <option value="Resort">Resort (Active)</option>
+                            <option value="Hotel">Hotel (Active)</option>
+                            <option value="Camping">Camping (Inactive)</option>
+                            <option value="Villa">Villa</option>
+                          </select>
+                        </div>
                         <div className="flex items-center">
                           <input
                             id="active"
@@ -945,6 +968,25 @@ const Coupons: React.FC = () => {
                             required
                             min={new Date().toISOString().split('T')[0]}
                           />
+                        </div>
+                        <div>
+                          <label htmlFor="edit-accommodationType" className="block text-sm font-medium text-gray-700">
+                            Accommodation Type
+                          </label>
+                          <select
+                            id="edit-accommodationType"
+                            name="edit-accommodationType"
+                            value={editingCoupon.accommodationType || 'all'}
+                            onChange={e => setEditingCoupon({ ...editingCoupon, accommodationType: e.target.value })}
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            required
+                          >
+                            <option value="all">All</option>
+                            <option value="Resort">Resort (Active)</option>
+                            <option value="Hotel">Hotel (Active)</option>
+                            <option value="Camping">Camping (Inactive)</option>
+                            <option value="Villa">Villa</option>
+                          </select>
                         </div>
                         <div className="flex items-center">
                           <input

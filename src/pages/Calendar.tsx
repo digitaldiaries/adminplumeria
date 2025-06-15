@@ -22,6 +22,8 @@ const Calendar = () => {
   const [success, setSuccess] = useState('');
   const [editingDate, setEditingDate] = useState<BlockedDate | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [adultPrice, setAdultPrice] = useState<number | ''>('');
+  const [childPrice, setChildPrice] = useState<number | ''>('');
 
   // Fetch blocked dates from backend
   const fetchBlockedDates = async () => {
@@ -78,6 +80,8 @@ const Calendar = () => {
     reason?: string;
     accommodation_id?: number;
     accommodation_name?: string;
+    adult_price?: number;
+    child_price?: number;
   }
 
   const handleDayClick = (day: Date) => {
@@ -118,61 +122,44 @@ const Calendar = () => {
 
     try {
       setLoading(true);
-      
-      if (editingDate) {
-        // Update existing blocked date
-        const response = await fetch(`${admin_BASE_URL}/blocked-dates/${editingDate.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            reason,
-            accommodation_id: selectedAccommodationId 
-          }),
-        });
 
-        const data = await response.json();
-        
-        if (data.success) {
-          setSuccess('Blocked date updated successfully');
-          await fetchBlockedDates();
-        } else {
-          setError(data.message || 'Failed to update blocked date');
+      const dates = editingDate
+        ? [editingDate.blocked_date]
+        : selectedDays.map(day => format(day, 'yyyy-MM-dd'));
+
+      // Allow saving if either reason or prices are set
+      if (!reason && !adultPrice && !childPrice) {
+        setError('Please provide a reason or set prices.');
+        setLoading(false);
+        return;
+      }
+
+      // Send all fields, backend should handle what to do
+      const response = await fetch(
+        editingDate
+          ? `${admin_BASE_URL}/blocked-dates/${editingDate.id}`
+          : `${admin_BASE_URL}/blocked-dates`,
+        {
+          method: editingDate ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dates,
+            reason: reason || null,
+            accommodation_id: selectedAccommodationId,
+            adult_price: adultPrice || null,
+            child_price: childPrice || null,
+          }),
         }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess('Saved successfully');
+        setSelectedDays([]);
+        await fetchBlockedDates();
       } else {
-        // Add new blocked dates
-        const dates = selectedDays.map(day => format(day, 'yyyy-MM-dd'));
-        
-        const response = await fetch(`${admin_BASE_URL}/blocked-dates`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            dates, 
-            reason,
-            accommodation_id: selectedAccommodationId 
-          }),
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-          const insertedCount = data.data.inserted.length;
-          const duplicateCount = data.data.duplicates.length;
-          
-          let message = `Successfully blocked ${insertedCount} date(s)`;
-          if (duplicateCount > 0) {
-            message += ` (${duplicateCount} date(s) were already blocked)`;
-          }
-          
-          setSuccess(message);
-          setSelectedDays([]);
-          await fetchBlockedDates();
-        } else {
-          setError(data.message || 'Failed to save blocked dates');
-        }
+        setError(data.message || 'Failed to save');
       }
     } catch (err) {
       setError('Error connecting to server');
@@ -183,6 +170,8 @@ const Calendar = () => {
       setEditingDate(null);
       setReason('');
       setSelectedAccommodationId(null);
+      setAdultPrice('');
+      setChildPrice('');
     }
   };
 
@@ -450,6 +439,38 @@ const Calendar = () => {
                   />
                 </div>
 
+                {/* Price Inputs */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="adultPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                      Adult Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="adultPrice"
+                      min="0"
+                      value={adultPrice}
+                      onChange={e => setAdultPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 1500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="childPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                      Child Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="childPrice"
+                      min="0"
+                      value={childPrice}
+                      onChange={e => setChildPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 800"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex space-x-3">
                   <button
                     type="button"
@@ -461,11 +482,35 @@ const Calendar = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={handleSaveBlockedDates}
+                    onClick={() => {
+                      // Only block date (require reason)
+                      if (!reason) {
+                        setError('Please provide a reason to block the date.');
+                        return;
+                      }
+                      handleSaveBlockedDates();
+                    }}
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                  >
+                    {loading ? 'Blocking...' : editingDate ? 'Update Block' : 'Block Date(s)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Only set prices (require at least one price)
+                      if (!adultPrice && !childPrice) {
+                        setError('Please set at least one price.');
+                        return;
+                      }
+                      // Clear reason so only prices are set
+                      setReason('');
+                      handleSaveBlockedDates();
+                    }}
                     disabled={loading}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    {loading ? 'Saving...' : editingDate ? 'Update' : 'Save'}
+                    {loading ? 'Saving...' : editingDate ? 'Update Price' : 'Set Price(s)'}
                   </button>
                 </div>
               </div>
@@ -533,6 +578,9 @@ const Calendar = () => {
           </div>
         </div>
       </div>
+      <p className="text-xs text-gray-500 mb-2">
+        You can block a date, set prices, or both. Leave reason empty to only set prices.
+      </p>
     </div>
   );
 };
