@@ -48,7 +48,7 @@ const Gallery = () => {
     alt_text: '',
     description: ''
   });
-  const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app';
+  const API_BASE_URL = 'https://adminplumeria-back.vercel.app'; 
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const filters = [
@@ -102,18 +102,39 @@ const Gallery = () => {
       setUploading(true);
       setError('');
 
-      const formData = new FormData();
-      Array.from(files).forEach(file => {
-        formData.append('images', file);
-      });
-      formData.append('category', details.category);
-      formData.append('title', details.title);
-      formData.append('alt_text', details.alt_text);
-      formData.append('description', details.description);
+      // 1. Upload each image to PHP endpoint and collect URLs
+      const uploadedImages: { src: string; alt: string }[] = [];
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
 
+        // Upload to PHP endpoint
+        const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        // Assume PHP returns { url: "https://..." }
+        if (data.url) {
+          uploadedImages.push({
+            src: data.url,
+            alt: details.alt_text || file.name,
+          });
+        }
+      }
+
+      // 2. Save image links and metadata to your backend
       const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: uploadedImages,
+          category: details.category,
+          title: details.title,
+          alt_text: details.alt_text,
+          description: details.description,
+        }),
       });
 
       if (!response.ok) {
@@ -466,7 +487,7 @@ const Gallery = () => {
                   alt={image.alt_text || image.title}
                   className="w-full h-full object-cover"
                   onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Image+Not+Found';
+                    e.currentTarget.src = 'https://placehold.co/300x300?text=Not+Found';
                   }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2, MapPin, Users, Package } from 'lucide-react';
 
 // admin base URL - adjust this to match your backend URL
-const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app';
+const admin_BASE_URL = 'https://adminplumeria-back.vercel.app'; // Replace with your actual admin base URL
 
 interface Accommodation {
   id?: number;
@@ -114,7 +114,7 @@ const AccommodationForm: React.FC = () => {
   const fetchAccommodation = async (accommodationId: string) => {
     setFetching(true);
     try {
-      const response = await fetch(`${admin_BASE_URL}/admin/accommodations/${accommodationId}`);
+      const response = await fetch(`${admin_BASE_URL}/admin/properties/accommodations/${accommodationId}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -159,7 +159,7 @@ const AccommodationForm: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL}/admin/users`);
+      const response = await fetch(`${admin_BASE_URL}/admin/properties/users`);
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -171,7 +171,7 @@ const AccommodationForm: React.FC = () => {
 
   const fetchCities = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL}/admin/cities`);
+      const response = await fetch(`${admin_BASE_URL}/admin/properties/cities`);
       if (response.ok) {
         const data = await response.json();
         setCities(data);
@@ -322,8 +322,8 @@ const AccommodationForm: React.FC = () => {
     
     try {
       const url = isEditing 
-        ? `${admin_BASE_URL}/admin/accommodations/${id}`
-        : `${admin_BASE_URL}/admin/accommodations`;
+        ? `${admin_BASE_URL}/admin/properties/accommodations/${id}`
+        : `${admin_BASE_URL}/admin/properties/accommodations`;
         
       const method = isEditing ? 'PUT' : 'POST';
       
@@ -406,8 +406,9 @@ const AccommodationForm: React.FC = () => {
           <div className="p-6 space-y-6">
             <div className="flex items-center mb-4">
               <Building2 className="h-5 w-5 text-blue-600 mr-2" />
-              <h2 className="text-lg font-medium text-gray-900">Basic Information</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
             </div>
+            <hr className="mb-6 border-gray-200" />
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
               <div className="sm:col-span-4">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -877,7 +878,7 @@ const AccommodationForm: React.FC = () => {
                     for (const file of Array.from(files)) {
                       const formDataFile = new FormData();
                       formDataFile.append('file', file);
-                      const res = await fetch(`${admin_BASE_URL}/admin/upload`, {
+                      const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
                         method: 'POST',
                         body: formDataFile,
                       });
@@ -940,7 +941,7 @@ const AccommodationForm: React.FC = () => {
                   for (const file of Array.from(files)) {
                     const formDataFile = new FormData();
                     formDataFile.append('file', file);
-                    const res = await fetch(`${admin_BASE_URL}/admin/upload`, {
+                    const res = await fetch(`${admin_BASE_URL}/admin/properties/upload`, {
                       method: 'POST',
                       body: formDataFile,
                     });

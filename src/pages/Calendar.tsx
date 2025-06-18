@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
-const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
+// const admin_BASE_URL = 'http://localhost:5000/admin/calendar';
+const admin_BASE_URL = 'https://adminplumeria-back.vercel.app/user/calendar';
+
 
 interface Accommodation {
   id: number;
@@ -220,14 +222,21 @@ const Calendar = () => {
   };
 
   const getDayClassName = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const blocked = blockedDates.find(bd => bd.blocked_date === dateStr);
+
     let className = 'calendar-day';
-    
-    if (isDateBlocked(date)) {
-      className += ' blocked-date';
+
+    if (blocked) {
+      if (blocked.reason && blocked.reason.trim() !== '') {
+        className += ' blocked-date-red bg-red-500 text-white font-bold'; // Blocked (red)
+      } else if ((blocked.adult_price || blocked.child_price) && (!blocked.reason || blocked.reason.trim() === '')) {
+        className += ' price-date-green bg-green-500 text-white font-bold'; // Price-set only (green)
+      }
     } else if (isDateSelected(date)) {
-      className += ' selected-date';
+      className += ' selected-date bg-blue-500 text-white font-bold';
     }
-    
+
     return className;
   };
 
@@ -339,9 +348,8 @@ const Calendar = () => {
             {calendarDays.map((day, index) => {
               const isCurrentMonth = day.getMonth() === currentDate.getMonth();
               const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-              const blocked = isDateBlocked(day);
-              const selected = isDateSelected(day);
-              
+              const className = getDayClassName(day);
+
               return (
                 <button
                   key={index}
@@ -351,9 +359,10 @@ const Calendar = () => {
                     p-2 text-sm rounded-md transition-colors
                     ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
                     ${isToday ? 'ring-2 ring-blue-500' : ''}
-                    ${blocked ? 'bg-red-100 text-red-700 font-semibold' : ''}
-                    ${selected ? 'bg-blue-100 text-blue-700 font-semibold' : ''}
-                    ${!blocked && !selected ? 'hover:bg-gray-100' : ''}
+                    ${className.includes('blocked-date-red') ? 'bg-red-100 text-red-700 font-semibold' : ''}
+                    ${className.includes('price-date-green') ? 'bg-green-100 text-green-700 font-semibold' : ''}
+                    ${className.includes('selected-date') ? 'bg-blue-100 text-blue-700 font-semibold' : ''}
+                    ${!className.includes('blocked-date-red') && !className.includes('price-date-green') && !className.includes('selected-date') ? 'hover:bg-gray-100' : ''}
                     ${loading ? 'cursor-not-allowed' : 'cursor-pointer'}
                   `}
                 >
@@ -368,6 +377,10 @@ const Calendar = () => {
             <div className="flex items-center">
               <div className="w-4 h-4 bg-red-100 border border-red-300 rounded mr-2"></div>
               <span>Blocked dates</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded mr-2"></div>
+              <span>Price-set only</span>
             </div>
             <div className="flex items-center">
               <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded mr-2"></div>

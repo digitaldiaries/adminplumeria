@@ -51,7 +51,7 @@ const Bookings: React.FC = () => {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('');
 
   // API base URL - adjust this to match your backend
-  const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
+  const API_BASE_URL = 'https://adminplumeria-back.vercel.app/admin';
 
   // Fetch bookings from API
   const fetchBookings = async (filterParams: FilterOptions = {}) => {

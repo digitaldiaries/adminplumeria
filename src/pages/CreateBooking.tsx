@@ -27,7 +27,7 @@ interface Coupon {
   active: boolean;
 }
 
-const _BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/bookings';
+const _BASE_URL = 'https://adminplumeria-back.vercel.app/admin/bookings';
 
 const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
@@ -181,8 +181,48 @@ const CreateBooking: React.FC = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        alert('Booking created successfully!');
-        navigate('/bookings');
+        // If payment method is cash or bank or any offline, just show success and redirect
+        if (
+          formData.paymentMethod === 'cash' ||
+          formData.paymentMethod === 'bank'
+          // add more offline methods here if needed
+        ) {
+          alert('Booking created successfully!');
+          navigate('/bookings');
+          return;
+        }
+
+        // Otherwise, proceed with PayU
+        const payuRes = await fetch('https://adminplumeria-back.vercel.app/admin/bookings/payments/payu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: formData.paymentAmount || formData.totalAmount,
+            firstname: formData.guestName,
+            email: formData.email,
+            phone: formData.phone,
+            productinfo: 'Booking',
+            surl: window.location.origin + '/payment-success',
+            furl: window.location.origin + '/payment-failure',
+            booking_id: result.booking_id
+          })
+        });
+        const payu = await payuRes.json();
+
+        // 2. Create a form and submit to PayU
+        const form = document.createElement('form');
+        form.action = payu.payu_url;
+        form.method = 'POST';
+        Object.entries(payu.payuData).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+        return;
       } else {
         throw new Error(result.error || 'Failed to create booking');
       }

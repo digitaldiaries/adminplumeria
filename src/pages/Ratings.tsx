@@ -1,49 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Building2, User, Calendar, Trash2 } from 'lucide-react';
 
 interface Rating {
   id: number;
   propertyName: string;
-  propertyType: string;
   guestName: string;
   rating: number;
   review: string;
   date: string;
+  image?: string;
 }
 
 const Ratings = () => {
-  const [ratings, setRatings] = useState<Rating[]>([
-    {
-      id: 1,
-      propertyName: 'Lakeside Villa',
-      propertyType: 'Villa',
-      guestName: 'John Doe',
-      rating: 5,
-      review: 'Amazing experience! The villa was beautiful and the service was excellent.',
-      date: '2025-03-15'
-    },
-    {
-      id: 2,
-      propertyName: 'Forest Cottage',
-      propertyType: 'Cottage',
-      guestName: 'Jane Smith',
-      rating: 4,
-      review: 'Great stay, loved the peaceful environment.',
-      date: '2025-03-14'
-    },
-    {
-      id: 3,
-      propertyName: 'Luxury Tent',
-      propertyType: 'Tent',
-      guestName: 'Mike Johnson',
-      rating: 5,
-      review: 'Unique glamping experience with all modern amenities.',
-      date: '2025-03-13'
-    }
-  ]);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleDelete = (id: number) => {
+  useEffect(() => {
+    fetch('https://adminplumeria-back.vercel.app/admin/ratings')
+      .then(res => res.json())
+      .then(data => {
+        setRatings(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this rating?')) {
+      await fetch(`https://adminplumeria-back.vercel.app/admin/ratings/${id}`, { method: 'DELETE' });
       setRatings(ratings.filter(rating => rating.id !== id));
     }
   };
@@ -80,7 +64,10 @@ const Ratings = () => {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="min-w-full divide-y divide-gray-200">
-          {ratings.map((rating) => (
+          {loading && (
+            <div className="text-center py-8 text-gray-500">Loading...</div>
+          )}
+          {!loading && ratings.map((rating) => (
             <div key={rating.id} className="p-6 hover:bg-gray-50">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -89,9 +76,6 @@ const Ratings = () => {
                     <h3 className="text-lg font-medium text-gray-900">
                       {rating.propertyName}
                     </h3>
-                    <span className="ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {rating.propertyType}
-                    </span>
                   </div>
                   <div className="flex items-center mb-2">
                     <div className="flex mr-4">
@@ -117,7 +101,7 @@ const Ratings = () => {
           ))}
         </div>
 
-        {ratings.length === 0 && (
+        {!loading && ratings.length === 0 && (
           <div className="text-center py-12">
             <Star className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No ratings yet</h3>

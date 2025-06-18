@@ -23,6 +23,8 @@ import Amenities from './pages/Amenities';
 import Cities from './pages/Cities';
 import Ratings from './pages/Ratings';
 import NotFound from './pages/NotFound';
+import Success from './pages/Success';
+import Failure from './pages/Failure';
 
 function App() {
   return (
@@ -53,6 +55,8 @@ function App() {
               <Route path="categories/:id" element={<CategoryForm />} />
               <Route path="users" element={<Users />} />
               <Route path="users/:id" element={<UserForm />} />
+              <Route path="payment-success" element={<Success />} />
+              <Route path="payment-failure" element={<Failure />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

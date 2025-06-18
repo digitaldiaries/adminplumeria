@@ -27,7 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeSidebar }) => {
     { name: 'Dashboard', path: '/', icon: <Home size={20} /> },
     { name: 'Properties', path: '/accommodations', icon: <Building2 size={20} /> },
     { name: 'Gallery', path: '/gallery', icon: <Image size={20} /> },
-    { name: 'Services', path: '/services', icon: <Coffee size={20} /> },
+    // { name: 'Services', path: '/services', icon: <Coffee size={20} /> },
     { name: 'Bookings', path: '/bookings', icon: <Calendar size={20} /> },
     { name: 'Calendar', path: '/calendar', icon: <Calendar size={20} /> },
     { name: 'Amenities', path: '/amenities', icon: <Wifi size={20} /> },
