@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
 // const admin_BASE_URL = 'http://localhost:5000/admin/calendar';
-const admin_BASE_URL = 'https://adminplumeria-back.vercel.app/user/calendar';
+const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/user/calendar';
 
 
 interface Accommodation {

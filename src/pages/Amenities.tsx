@@ -8,7 +8,7 @@ interface Amenity {
   active: boolean;
 }
 
-const API_BASE_URL = 'https://adminplumeria-back.vercel.app/admin/amenities';
+const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/amenities';
 
 const Amenities = () => {
   const [amenities, setAmenities] = useState<Amenity[]>([]);

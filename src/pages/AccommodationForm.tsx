@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2, MapPin, Users, Package } from 'lucide-react';
 
 // admin base URL - adjust this to match your backend URL
-const admin_BASE_URL = 'https://adminplumeria-back.vercel.app'; // Replace with your actual admin base URL
+const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app'; // Replace with your actual admin base URL
 
 interface Accommodation {
   id?: number;

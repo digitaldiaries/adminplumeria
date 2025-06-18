@@ -27,7 +27,7 @@ interface Coupon {
   active: boolean;
 }
 
-const _BASE_URL = 'https://adminplumeria-back.vercel.app/admin/bookings';
+const _BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/bookings';
 
 const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
@@ -193,7 +193,7 @@ const CreateBooking: React.FC = () => {
         }
 
         // Otherwise, proceed with PayU
-        const payuRes = await fetch('https://adminplumeria-back.vercel.app/admin/bookings/payments/payu', {
+        const payuRes = await fetch('https://plumeriaadminback-production.up.railway.app/admin/bookings/payments/payu', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

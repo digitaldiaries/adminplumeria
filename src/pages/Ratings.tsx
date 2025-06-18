@@ -16,7 +16,7 @@ const Ratings = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('https://adminplumeria-back.vercel.app/admin/ratings')
+    fetch('https://plumeriaadminback-production.up.railway.app/admin/ratings')
       .then(res => res.json())
       .then(data => {
         setRatings(data);
@@ -27,7 +27,7 @@ const Ratings = () => {
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this rating?')) {
-      await fetch(`https://adminplumeria-back.vercel.app/admin/ratings/${id}`, { method: 'DELETE' });
+      await fetch(`https://plumeriaadminback-production.up.railway.app/admin/ratings/${id}`, { method: 'DELETE' });
       setRatings(ratings.filter(rating => rating.id !== id));
     }
   };

@@ -48,7 +48,7 @@ const Gallery = () => {
     alt_text: '',
     description: ''
   });
-  const API_BASE_URL = 'https://adminplumeria-back.vercel.app'; 
+  const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app'; 
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const filters = [
