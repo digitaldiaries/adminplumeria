@@ -106,7 +106,7 @@ const Gallery = () => {
       const uploadedImages: { src: string; alt: string }[] = [];
       for (const file of Array.from(files)) {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('image', file); // <-- must be 'image' for your PHP
 
         // Upload to PHP endpoint
         const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
@@ -115,12 +115,14 @@ const Gallery = () => {
         });
 
         const data = await res.json();
-        // Assume PHP returns { url: "https://..." }
-        if (data.url) {
+        // PHP returns { success, message, filename }
+        if (data.success && data.filename) {
           uploadedImages.push({
-            src: data.url,
+            src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
             alt: details.alt_text || file.name,
           });
+        } else {
+          throw new Error(data.message || 'Upload failed');
         }
       }
 
@@ -176,25 +178,46 @@ const Gallery = () => {
   };
 
   // Delete image from backend
-  const handleDelete = async (imageId: string) => {
+  const handleDelete = async (imageId: string, imageUrl?: string) => {
     if (!window.confirm('Are you sure you want to delete this image?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/gallery-2/${imageId}`, {
+      // 1. Delete from PHP server first
+      if (imageUrl) {
+        const filename = imageUrl.split('/').pop();
+        const formData = new FormData();
+        formData.append('filename', filename || '');
+
+        const phpRes = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/delete.php', {
+          method: 'POST',
+          body: formData,
+          // Do NOT set Content-Type header!
+        });
+        const phpData = await phpRes.json();
+        if (!phpData.success) {
+          throw new Error(phpData.message || 'Failed to delete image from server');
+        }
+      }
+
+      // 2. Delete from your backend DB
+      const response = await fetch(`${API_BASE_URL}/admin/gallery/${imageId}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Delete failed');
+        let errorMsg = 'Delete failed';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          // If not JSON, fallback to status text
+          errorMsg = response.statusText || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       setSuccess('Image deleted successfully');
-
-      // Remove image from state
       setImages(prev => prev.filter(img => img.id !== imageId));
-
-      // Refresh stats
       await fetchStats();
     } catch (err: any) {
       setError(err.message || 'Failed to delete image');
@@ -493,7 +516,7 @@ const Gallery = () => {
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
                     <button
-                      onClick={() => handleDelete(image.id)}
+                      onClick={() => handleDelete(image.id, image.image_url)}
                       className="p-1.5 bg-white rounded-full text-red-600 hover:bg-red-50"
                       title="Delete image"
                     >

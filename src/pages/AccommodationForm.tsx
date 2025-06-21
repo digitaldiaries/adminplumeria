@@ -79,6 +79,7 @@ const AccommodationForm: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [propertyImageFiles, setPropertyImageFiles] = useState<File[]>([]);
   const [amenities, setAmenities] = useState<Amenity[]>([
     { id: 1, name: 'WiFi', icon: 'wifi' },
     { id: 2, name: 'Swimming Pool', icon: 'flame' },
@@ -877,13 +878,15 @@ const AccommodationForm: React.FC = () => {
                     const uploadedUrls: string[] = [];
                     for (const file of Array.from(files)) {
                       const formDataFile = new FormData();
-                      formDataFile.append('file', file);
+                      formDataFile.append('image', file); // <-- must match PHP
                       const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
                         method: 'POST',
                         body: formDataFile,
                       });
                       const data = await res.json();
-                      if (data.url) uploadedUrls.push(data.url);
+                      if (data.success && data.filename) {
+                        uploadedUrls.push(`https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`);
+                      }
                     }
                     setFormData({
                       ...formData,
