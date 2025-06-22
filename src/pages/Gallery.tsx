@@ -109,6 +109,7 @@ const Gallery = () => {
         formData.append('image', file); // <-- must be 'image' for your PHP
 
         // Upload to PHP endpoint
+        console.log('Uploading file:', formData.get('image'));
         const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
           method: 'POST',
           body: formData,
