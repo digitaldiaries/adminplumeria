@@ -435,27 +435,36 @@ const AccommodationForm: React.FC = () => {
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700">
                   Type *
                 </label>
-                <div className="mt-1">
-                  <select
-                    id="type"
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.type ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Suite">Suite</option>
-                    <option value="Cottage">Cottage</option>
-                    <option value="Bungalow">Bungalow</option>
-                    <option value="Glamping">Glamping</option>
-                    <option value="Standard">Standard Room</option>
-                    <option value="Deluxe">Deluxe Room</option>
-                  </select>
-                  {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
-                </div>
+               <div className="mt-1">
+                <select
+                  id="type"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm rounded-md ${
+                    errors.type ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select Type</option>
+
+                  {/* Add fallback if the type is not in list */}
+                  {!['Villa', 'Suite', 'Cottage', 'Bungalow', 'Glamping', 'Standard', 'Deluxe'].includes(formData.type) &&
+                    formData.type && (
+                      <option value={formData.type}>{formData.type}</option>
+                    )}
+
+                  <option value="Villa">Villa</option>
+                  <option value="Suite">Suite</option>
+                  <option value="Cottage">Cottage</option>
+                  <option value="Bungalow">Bungalow</option>
+                  <option value="Glamping">Glamping</option>
+                  <option value="Standard">Standard Room</option>
+                  <option value="Deluxe">Deluxe Room</option>
+                </select>
+
+                {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
+              </div>
+
               </div>
 
               <div className="sm:col-span-6">
@@ -787,7 +796,7 @@ const AccommodationForm: React.FC = () => {
                     type="text"
                     name="packageName"
                     id="packageName"
-                    value={formData.packageName}
+                    value={formData.name}
                     onChange={handleChange}
                     className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                     placeholder="e.g., Weekend Getaway Package"
