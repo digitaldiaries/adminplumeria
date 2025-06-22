@@ -304,9 +304,9 @@ const AccommodationForm: React.FC = () => {
     if (formData.rooms <= 0) {
       newErrors.rooms = 'Rooms must be greater than 0';
     }
-    if (formData.images.length === 0) {
-      newErrors.images = 'At least one image is required';
-    }
+    // if (formData.images.length === 0) {
+    //   newErrors.images = 'At least one image is required';
+    // }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
