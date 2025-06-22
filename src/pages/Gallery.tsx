@@ -96,78 +96,85 @@ const Gallery = () => {
 
   // Upload images to backend
   const handleUpload = async (files: FileList | null, details: typeof uploadDetails) => {
-    if (!files || files.length === 0) return;
+  if (!files || files.length === 0) return;
 
-    try {
-      setUploading(true);
-      setError('');
+  try {
+    setUploading(true);
+    setError('');
 
-      // 1. Upload each image to PHP endpoint and collect URLs
-      const uploadedImages: { src: string; alt: string }[] = [];
-      for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append('image', file); // <-- must be 'image' for your PHP
+    const uploadedImages: { src: string; alt: string }[] = [];
 
-        // Upload to PHP endpoint
-        console.log('Uploading file:', formData.get('image'));
-        const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
-          method: 'POST',
-          body: formData,
-        });
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append('image', file); // Make sure PHP expects 'image'
 
-        const data = await res.json();
-        // PHP returns { success, message, filename }
-        if (data.success && data.filename) {
-          uploadedImages.push({
-            src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
-            alt: details.alt_text || file.name,
-          });
-        } else {
-          throw new Error(data.message || 'Upload failed');
-        }
-      }
-
-      // 2. Save image links and metadata to your backend
-      const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
+      // Upload to PHP endpoint
+      console.log('Uploading file:', formData.get('image'));
+      const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          images: uploadedImages,
-          category: details.category,
-          title: details.title,
-          alt_text: details.alt_text,
-          description: details.description,
-        }),
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      const rawText = await res.text(); // ✅ Safe single read
+      let data: any;
+
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        console.error('Non-JSON PHP response:', rawText);
+        throw new Error(`Server error: ${rawText || res.statusText}`);
       }
 
-      const data: { images: GalleryImage[] } = await response.json();
-      setSuccess(`${data.images.length} image(s) uploaded successfully`);
-
-      // Refresh images and stats
-      await fetchImages();
-      await fetchStats();
-
-      // Clear file input and reset form
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (data.success && data.filename) {
+        uploadedImages.push({
+          src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
+          alt: details.alt_text || file.name,
+        });
+      } else {
+        throw new Error(data.message || 'Upload failed on server');
       }
-      setUploadDetails({
-        category: 'accommodation',
-        title: '',
-        alt_text: '',
-        description: ''
-      });
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload images');
-      console.error('Upload error:', err);
-    } finally {
-      setUploading(false);
     }
+
+    // Save image metadata to your backend
+    const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        images: uploadedImages,
+        category: details.category,
+        title: details.title,
+        alt_text: details.alt_text,
+        description: details.description,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Image metadata save failed');
+    }
+
+    const savedData: { images: GalleryImage[] } = await response.json();
+    setSuccess(`${savedData.images.length} image(s) uploaded successfully`);
+
+    // Refresh UI
+    await fetchImages();
+    await fetchStats();
+
+    // Reset input and form
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setUploadDetails({
+      category: 'accommodation',
+      title: '',
+      alt_text: '',
+      description: ''
+    });
+
+  } catch (err: any) {
+    setError(err.message || 'Image upload failed');
+    console.error('Upload error:', err);
+  } finally {
+    setUploading(false);
+  }
   };
 
   // Handle modal upload

@@ -126,9 +126,10 @@ const AccommodationForm: React.FC = () => {
       }
       
       const data = await response.json();
+      console.log('Fetched accommodation data:', data);
       setFormData({
         id: data.id,
-        name: data.name || '',
+        name: data.title || '',
         description: data.description || '',
         type: data.type || '',
         capacity: data.capacity || 2,
@@ -146,7 +147,7 @@ const AccommodationForm: React.FC = () => {
         packageName: data.packageName || '',
         packageDescription: data.packageDescription || '',
         packageImages: data.packageImages || [],
-        adultPrice: data.adultPrice || 0,
+        adultPrice: data.price || 0,
         childPrice: data.childPrice || 0,
         maxGuests: data.maxGuests || 2
       });

@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
 // const admin_BASE_URL = 'http://localhost:5000/admin/calendar';
-const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/calendar';
+// ✅ Correct
+const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
 
 
 interface Accommodation {
@@ -31,7 +32,7 @@ const Calendar = () => {
   const fetchBlockedDates = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${admin_BASE_URL}/blocked-dates`);
+      const response = await fetch(`${admin_BASE_URL}/calendar/blocked-dates`);
       const data = await response.json();
       
       if (data.success) {
@@ -40,6 +41,7 @@ const Calendar = () => {
         setError('Failed to fetch blocked dates');
       }
     } catch (err) {
+      alert("Error from fetch BlockedDates");
       setError('Error connecting to server');
       console.error('Fetch error:', err);
     } finally {
@@ -139,8 +141,8 @@ const Calendar = () => {
       // Send all fields, backend should handle what to do
       const response = await fetch(
         editingDate
-          ? `${admin_BASE_URL}/blocked-dates/${editingDate.id}`
-          : `${admin_BASE_URL}/blocked-dates`,
+          ? `${admin_BASE_URL}/calendar/blocked-dates/${editingDate.id}`
+          : `${admin_BASE_URL}/calendar/blocked-dates`,
         {
           method: editingDate ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -164,6 +166,7 @@ const Calendar = () => {
         setError(data.message || 'Failed to save');
       }
     } catch (err) {
+      alert("handleSaveBlockedDates Error Coming")
       setError('Error connecting to server');
       console.error('Save error:', err);
     } finally {
@@ -197,6 +200,7 @@ const Calendar = () => {
         setError(data.message || 'Failed to remove blocked date');
       }
     } catch (err) {
+      alert("Error from fetch BlockedDates")
       setError('Error connecting to server');
       console.error('Delete error:', err);
     } finally {
