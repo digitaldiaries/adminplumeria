@@ -110,7 +110,7 @@ const Gallery = () => {
 
       // Upload to PHP endpoint
       console.log('Uploading file:', formData.get('image'));
-      const res = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/upload.php', {
+      const res = await fetch('https://plumeriaretreat.com/upload_gallery.php', {
         method: 'POST',
         body: formData,
       });
