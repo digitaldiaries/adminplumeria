@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
+import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -18,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
@@ -26,61 +27,53 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check if user is already logged in on app start
-  useEffect(() => {
-    const savedUser = localStorage.getItem('adminUser');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        localStorage.removeItem('adminUser');
-      }
-    }
-    setIsLoading(false);
-  }, []);
+  const [isLoading, setIsLoading] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - accept any credentials for demo
-    // In real app, this would make an API call to your backend
-    if (email && password) {
-      const mockUser: User = {
-        id: '1',
-        name: 'Admin User',
-        email: email,
-        role: 'admin'
+    try {
+      const response = await fetch('https://plumeriaretreatback-production.up.railway.app/admin/users');
+      const users = await response.json();
+
+      const matchedUser = users.find((u: any) => u.email === email);
+      console.log(
+        'Matched user:', matchedUser, 'for email:', email, 'with password:', password
+      )
+      if (!matchedUser) {
+        setIsLoading(false);
+        return false;
+      }
+
+      const isPasswordMatch = await bcrypt.compare(password, matchedUser.password);
+      console.log('Password match:', isPasswordMatch, 'for user:', matchedUser.email);
+      if (!isPasswordMatch) {
+        setIsLoading(false);
+        return false;
+      }
+
+      const authUser: User = {
+        id: matchedUser.id,
+        name: matchedUser.name,
+        email: matchedUser.email,
+        role: matchedUser.role,
       };
-      
-      setUser(mockUser);
-      localStorage.setItem('adminUser', JSON.stringify(mockUser));
+
+      setUser(authUser);
       setIsLoading(false);
       return true;
+    } catch (err) {
+      console.error('Login error:', err);
+      setIsLoading(false);
+      return false;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('adminUser');
-  };
-
-  const value = {
-    user,
-    login,
-    logout,
-    isLoading
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
