@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
-// const admin_BASE_URL = 'http://localhost:5000';
+const admin_BASE_URL = 'http://localhost:5000';
 // ✅ Correct
-const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app';
+// const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app';
 
 
 interface Accommodation {
@@ -137,12 +137,17 @@ const Calendar = () => {
         setLoading(false);
         return;
       }
-
+      console.log("dates",dates)
+      console.log("reason",reason)
+      console.log("selectedAccommodationId",selectedAccommodationId)
+      console.log("adultPrice",adultPrice)
+      console.log("childPrice",childPrice)
+      
       // Send all fields, backend should handle what to do
       const response = await fetch(
         editingDate
-          ? `${admin_BASE_URL}/calendar/blocked-dates/${editingDate.id}`
-          : `${admin_BASE_URL}/calendar/blocked-dates`,
+          ? `${admin_BASE_URL}/admin/calendar/blocked-dates/${editingDate.id}`
+          : `${admin_BASE_URL}/admin/calendar/blocked-dates`,
         {
           method: editingDate ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
