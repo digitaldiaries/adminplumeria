@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2, MapPin, Users, Package } from 'lucide-react';
 
 // admin base URL - adjust this to match your backend URL
-const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app'; // Replace with your actual admin base URL
+const admin_BASE_URL = 'https://adminplumeria-back.onrender.com'; // Replace with your actual admin base URL
 
 interface Accommodation {
   id?: number;
@@ -116,7 +116,7 @@ const AccommodationForm: React.FC = () => {
     setFetching(true);
     try {
       const response = await fetch(`${admin_BASE_URL}/admin/properties/accommodations/${accommodationId}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           setSubmitError('Accommodation not found');
@@ -124,7 +124,7 @@ const AccommodationForm: React.FC = () => {
         }
         throw new Error('Failed to fetch accommodation');
       }
-      
+
       const data = await response.json();
       console.log('Fetched accommodation data:', data);
       setFormData({
@@ -185,7 +185,7 @@ const AccommodationForm: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData({
         ...formData,
@@ -207,7 +207,7 @@ const AccommodationForm: React.FC = () => {
         [name]: value,
       });
     }
-    
+
     // Clear field-specific error when user starts typing
     if (errors[name]) {
       setErrors({
@@ -285,7 +285,7 @@ const AccommodationForm: React.FC = () => {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
@@ -307,7 +307,7 @@ const AccommodationForm: React.FC = () => {
     // if (formData.images.length === 0) {
     //   newErrors.images = 'At least one image is required';
     // }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -315,20 +315,20 @@ const AccommodationForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
-    
+
     if (!validate()) {
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      const url = isEditing 
+      const url = isEditing
         ? `${admin_BASE_URL}/admin/properties/accommodations/${id}`
         : `${admin_BASE_URL}/admin/properties/accommodations`;
-        
+
       const method = isEditing ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -344,7 +344,7 @@ const AccommodationForm: React.FC = () => {
 
       const savedAccommodation = await response.json();
       console.log('Accommodation saved:', savedAccommodation);
-      
+
       // Navigate back to accommodations list
       navigate('/accommodations');
     } catch (error) {
@@ -423,9 +423,8 @@ const AccommodationForm: React.FC = () => {
                     id="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.name ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${errors.name ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
@@ -435,35 +434,34 @@ const AccommodationForm: React.FC = () => {
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700">
                   Type *
                 </label>
-               <div className="mt-1">
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm rounded-md ${
-                    errors.type ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Type</option>
+                <div className="mt-1">
+                  <select
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm rounded-md ${errors.type ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                  >
+                    <option value="">Select Type</option>
 
-                  {/* Add fallback if the type is not in list */}
-                  {!['Villa', 'Suite', 'Cottage', 'Bungalow', 'Glamping', 'Standard', 'Deluxe'].includes(formData.type) &&
-                    formData.type && (
-                      <option value={formData.type}>{formData.type}</option>
-                    )}
+                    {/* Add fallback if the type is not in list */}
+                    {!['Villa', 'Suite', 'Cottage', 'Bungalow', 'Glamping', 'Standard', 'Deluxe'].includes(formData.type) &&
+                      formData.type && (
+                        <option value={formData.type}>{formData.type}</option>
+                      )}
 
-                  <option value="Villa">Villa</option>
-                  <option value="Suite">Suite</option>
-                  <option value="Cottage">Cottage</option>
-                  <option value="Bungalow">Bungalow</option>
-                  <option value="Glamping">Glamping</option>
-                  <option value="Standard">Standard Room</option>
-                  <option value="Deluxe">Deluxe Room</option>
-                </select>
+                    <option value="Villa">Villa</option>
+                    <option value="Suite">Suite</option>
+                    <option value="Cottage">Cottage</option>
+                    <option value="Bungalow">Bungalow</option>
+                    <option value="Glamping">Glamping</option>
+                    <option value="Standard">Standard Room</option>
+                    <option value="Deluxe">Deluxe Room</option>
+                  </select>
 
-                {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
-              </div>
+                  {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
+                </div>
 
               </div>
 
@@ -478,9 +476,8 @@ const AccommodationForm: React.FC = () => {
                     rows={3}
                     value={formData.description}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.description ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${errors.description ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                 </div>
@@ -520,9 +517,8 @@ const AccommodationForm: React.FC = () => {
                     min="1"
                     value={formData.capacity}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.capacity ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${errors.capacity ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.capacity && <p className="mt-1 text-sm text-red-600">{errors.capacity}</p>}
                 </div>
@@ -540,9 +536,8 @@ const AccommodationForm: React.FC = () => {
                     min="1"
                     value={formData.rooms}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.rooms ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${errors.rooms ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.rooms && <p className="mt-1 text-sm text-red-600">{errors.rooms}</p>}
                 </div>
@@ -561,9 +556,8 @@ const AccommodationForm: React.FC = () => {
                     step="0.01"
                     value={formData.price}
                     onChange={handleChange}
-                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
-                      errors.price ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${errors.price ? 'border-red-300' : 'border-gray-300'
+                      }`}
                   />
                   {errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
                 </div>
@@ -678,7 +672,7 @@ const AccommodationForm: React.FC = () => {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6 space-y-6">
             <h2 className="text-lg font-medium text-gray-900 border-b pb-2">Features & Amenities</h2>
-            
+
             {/* Custom Features */}
             <div className="space-y-4">
               <h3 className="text-md font-medium text-gray-700">Custom Features</h3>
@@ -893,7 +887,11 @@ const AccommodationForm: React.FC = () => {
                         method: 'POST',
                         body: formDataFile,
                       });
+                      if (!res.ok) {
+                        console.error('Failed to upload image:', res.statusText);
+                      }
                       const data = await res.json();
+                      console.log('Upload response:', data);
                       if (data.success && data.filename) {
                         uploadedUrls.push(`https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`);
                       }

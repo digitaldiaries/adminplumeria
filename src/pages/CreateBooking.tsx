@@ -27,7 +27,7 @@ interface Coupon {
   active: boolean;
 }
 
-const _BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/bookings';
+const _BASE_URL = 'https://adminplumeria-back.onrender.com/bookings';
 
 const CreateBooking: React.FC = () => {
   const navigate = useNavigate();

@@ -33,7 +33,7 @@ interface CouponFormData {
   accommodationType?: string; // <-- Add this line
 }
 
-const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
+const API_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
 
 const defaultCoupon: CouponFormData = {
   code: '',

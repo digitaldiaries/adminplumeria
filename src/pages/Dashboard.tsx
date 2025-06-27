@@ -217,7 +217,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin';
+  const admin_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
 
   // Fetch dashboard stats
   const fetchStats = async () => {

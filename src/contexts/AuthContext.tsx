@@ -26,27 +26,25 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('authUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/admin/users');
+      const response = await fetch('https://adminplumeria-back.onrender.com/admin/users');
       const users = await response.json();
-
       console.log('Fetched users:', users);
       const matchedUser = users.find((u: any) => u.email === email);
-      console.log(
-        'Matched user:', matchedUser, 'for email:', email, 'with password:', password
-      )
       if (!matchedUser) {
         setIsLoading(false);
         return false;
       }
 
       const isPasswordMatch = await bcrypt.compare(password, matchedUser.password);
-      console.log('Password match:', isPasswordMatch, 'for user:', matchedUser.email);
       if (!isPasswordMatch) {
         setIsLoading(false);
         return false;
@@ -60,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       setUser(authUser);
+      localStorage.setItem('authUser', JSON.stringify(authUser)); // persist login
       setIsLoading(false);
       return true;
     } catch (err) {
@@ -71,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('authUser'); // clear stored login
   };
 
   return (

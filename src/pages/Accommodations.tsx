@@ -13,7 +13,7 @@ const Accommodations: React.FC = () => {
     availability: ''
   });
 
-  const API_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/properties';
+  const API_BASE_URL = 'https://adminplumeria-back.onrender.com/admin/properties';
 
   // Fetch accommodations from backend
   useEffect(() => {
