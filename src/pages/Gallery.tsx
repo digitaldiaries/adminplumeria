@@ -48,7 +48,7 @@ const Gallery = () => {
     alt_text: '',
     description: ''
   });
-  const API_BASE_URL = 'https://adminplumeria-back.onrender.com'; 
+  const API_BASE_URL = 'https://adminplumeria-back.onrender.com'; // Change to your backend URL
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const filters = [
@@ -96,85 +96,84 @@ const Gallery = () => {
 
   // Upload images to backend
   const handleUpload = async (files: FileList | null, details: typeof uploadDetails) => {
-  if (!files || files.length === 0) return;
+    if (!files || files.length === 0) return;
 
-  try {
-    setUploading(true);
-    setError('');
+    try {
+      setUploading(true);
+      setError('');
 
-    const uploadedImages: { src: string; alt: string }[] = [];
+      const uploadedImages: { src: string; alt: string }[] = [];
 
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append('image', file); // Make sure PHP expects 'image'
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('image', file); // Make sure PHP expects 'image'
 
-      // Upload to PHP endpoint
-      console.log('Uploading file:', formData.get('image'));
-      const res = await fetch('https://plumeriaretreat.com/upload_gallery.php', {
+        // Upload to PHP endpoint
+        console.log('Uploading file:', formData.get('image'));
+        const res = await fetch('https://plumeriaretreat.com/upload_gallery.php', {
+          method: 'POST',
+          body: formData,
+        });
+        const rawText = await res.text(); // ✅ Safe single read
+        let data: any;
+
+        try {
+          data = JSON.parse(rawText);
+        } catch (err) {
+          console.error('Non-JSON PHP response:', rawText);
+          throw new Error(`Server error: ${rawText || res.statusText}`);
+        }
+
+        if (data.success && data.filename) {
+          uploadedImages.push({
+            src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
+            alt: details.alt_text || file.name,
+          });
+        } else {
+          throw new Error(data.message || 'Upload failed on server');
+        }
+      }
+
+      // Save image metadata to your backend
+      const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: uploadedImages,
+          category: details.category,
+          title: details.title,
+          alt_text: details.alt_text,
+          description: details.description,
+        }),
       });
 
-      const rawText = await res.text(); // ✅ Safe single read
-      let data: any;
-
-      try {
-        data = JSON.parse(rawText);
-      } catch (err) {
-        console.error('Non-JSON PHP response:', rawText);
-        throw new Error(`Server error: ${rawText || res.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Image metadata save failed');
       }
 
-      if (data.success && data.filename) {
-        uploadedImages.push({
-          src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
-          alt: details.alt_text || file.name,
-        });
-      } else {
-        throw new Error(data.message || 'Upload failed on server');
-      }
+      const savedData: { images: GalleryImage[] } = await response.json();
+      setSuccess(`${savedData.images.length} image(s) uploaded successfully`);
+
+      // Refresh UI
+      await fetchImages();
+      await fetchStats();
+
+      // Reset input and form
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setUploadDetails({
+        category: 'accommodation',
+        title: '',
+        alt_text: '',
+        description: ''
+      });
+
+    } catch (err: any) {
+      setError(err.message || 'Image upload failed');
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
     }
-
-    // Save image metadata to your backend
-    const response = await fetch(`${API_BASE_URL}/admin/gallery/upload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        images: uploadedImages,
-        category: details.category,
-        title: details.title,
-        alt_text: details.alt_text,
-        description: details.description,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Image metadata save failed');
-    }
-
-    const savedData: { images: GalleryImage[] } = await response.json();
-    setSuccess(`${savedData.images.length} image(s) uploaded successfully`);
-
-    // Refresh UI
-    await fetchImages();
-    await fetchStats();
-
-    // Reset input and form
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setUploadDetails({
-      category: 'accommodation',
-      title: '',
-      alt_text: '',
-      description: ''
-    });
-
-  } catch (err: any) {
-    setError(err.message || 'Image upload failed');
-    console.error('Upload error:', err);
-  } finally {
-    setUploading(false);
-  }
   };
 
   // Handle modal upload
@@ -301,7 +300,7 @@ const Gallery = () => {
               <XCircle className="h-6 w-6" />
             </button>
             <h2 className="text-lg font-semibold mb-4">Upload Image Details</h2>
-            
+
             {/* Show selected files */}
             {selectedFiles && (
               <div className="mb-4 p-3 bg-gray-50 rounded-md">
@@ -310,7 +309,7 @@ const Gallery = () => {
                 </p>
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category *</label>
@@ -325,7 +324,7 @@ const Gallery = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Title *</label>
                 <input
@@ -337,7 +336,7 @@ const Gallery = () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Alt Text *</label>
                 <input
@@ -349,7 +348,7 @@ const Gallery = () => {
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea
@@ -360,7 +359,7 @@ const Gallery = () => {
                   rows={3}
                 />
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -476,25 +475,24 @@ const Gallery = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             {filters.map((filter) => {
-            const count =
-              filter.id === 'all'
-                ? images.length
-                : images.filter(img => img.category === filter.id).length;
+              const count =
+                filter.id === 'all'
+                  ? images.length
+                  : images.filter(img => img.category === filter.id).length;
 
-            return (
-              <button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className={`${
-                  activeFilter === filter.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors duration-150`}
-              >
-                {filter.name} ({count})
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                  className={`${activeFilter === filter.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors duration-150`}
+                >
+                  {filter.name} ({count})
+                </button>
+              );
+            })}
           </nav>
         </div>
       </div>
@@ -511,28 +509,36 @@ const Gallery = () => {
       {!loading && (
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
           {images.map((image) => (
-            <div key={image.id} className="relative group rounded-lg overflow-hidden bg-gray-200">
-              <div className="aspect-w-1 aspect-h-1">
+            <div
+              key={image.id}
+              className="relative group rounded-lg overflow-hidden bg-gray-200"
+              style={{ aspectRatio: '1/1' }} // Ensures square containers
+            >
+              {/* Image container with full coverage */}
+              <div className="relative w-full h-full">
                 <img
                   src={image.image_url}
                   alt={image.alt_text || image.title}
-                  className="w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover" // Changed from object-fit to object-cover
                   onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                     e.currentTarget.src = 'https://placehold.co/300x300?text=Not+Found';
+                    e.currentTarget.className = 'absolute inset-0 w-full h-full object-cover bg-gray-100';
                   }}
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
+
+                {/* Hover overlay with buttons */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 flex space-x-2 transition-opacity duration-200">
                     <button
                       onClick={() => handleDelete(image.id, image.image_url)}
-                      className="p-1.5 bg-white rounded-full text-red-600 hover:bg-red-50"
+                      className="p-1.5 bg-white rounded-full text-red-600 hover:bg-red-50 transition-colors"
                       title="Delete image"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => window.open(image.image_url, '_blank')}
-                      className="p-1.5 bg-white rounded-full text-blue-600 hover:bg-blue-50"
+                      className="p-1.5 bg-white rounded-full text-blue-600 hover:bg-blue-50 transition-colors"
                       title="View full image"
                     >
                       <Eye className="h-4 w-4" />
@@ -540,8 +546,10 @@ const Gallery = () => {
                   </div>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black to-transparent">
-                <p className="text-white text-sm truncate" title={image.title}>
+
+              {/* Image caption */}
+              <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 via-black/60 to-transparent">
+                <p className="text-white text-sm font-medium truncate" title={image.title}>
                   {image.title}
                 </p>
                 <span className="text-xs text-gray-300 capitalize">
