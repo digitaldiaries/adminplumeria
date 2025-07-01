@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Image, Coffee, Calendar, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { 
+  Building2, 
+  Image, 
+  Coffee, 
+  Calendar, 
+  TrendingUp, 
+  Users, 
+  DollarSign,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
 
 // StatCard Component
 type StatCardProps = {
@@ -8,9 +18,10 @@ type StatCardProps = {
   change: string;
   icon: React.ReactNode;
   trend: 'up' | 'down';
+  loading?: boolean;
 };
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, trend }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, trend, loading = false }) => {
   const isPositive = trend === 'up';
   
   return (
@@ -18,42 +29,59 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, trend }
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-500 truncate">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          {loading ? (
+            <div className="animate-pulse h-8 w-3/4 bg-gray-200 rounded mt-2"></div>
+          ) : (
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+          )}
         </div>
         <div className="flex-shrink-0">
           {icon}
         </div>
       </div>
       <div className="mt-4 flex items-center">
-        <div className={`flex items-center text-sm ${
-          isPositive ? 'text-green-600' : 'text-red-600'
-        }`}>
-          <TrendingUp className="h-4 w-4 mr-1" />
-          <span className="font-medium">{change}</span>
-        </div>
-        <span className="text-sm text-gray-500 ml-2">from last month</span>
+        {loading ? (
+          <div className="animate-pulse h-4 w-full bg-gray-200 rounded"></div>
+        ) : (
+          <>
+            <div className={`flex items-center text-sm ${
+              isPositive ? 'text-green-600' : 'text-red-600'
+            }`}>
+              <TrendingUp className="h-4 w-4 mr-1" />
+              <span className="font-medium">{change}</span>
+            </div>
+            <span className="text-sm text-gray-500 ml-2">from last month</span>
+          </>
+        )}
       </div>
     </div>
   );
 };
 
 // RecentBookingsTable Component
-type RecentBookingsTableProps = {
-  bookings: Array<any>;
-  loading: boolean;
+type Booking = {
+  id: string | number;
+  guestName: string;
+  email: string;
+  accommodation: string;
+  checkIn: string;
+  amount: string | number;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
 };
 
-const RecentBookingsTable: React.FC<RecentBookingsTableProps> = ({ bookings, loading }) => {
-  interface Booking {
-    id: string | number;
-    guestName: string;
-    email: string;
-    accommodation: string;
-    checkIn: string;
-    amount: string | number;
-    status: string;
-  }
+type RecentBookingsTableProps = {
+  bookings: Booking[];
+  loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+};
 
+const RecentBookingsTable: React.FC<RecentBookingsTableProps> = ({ 
+  bookings, 
+  loading, 
+  error,
+  onRetry 
+}) => {
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'confirmed':
@@ -69,25 +97,15 @@ const RecentBookingsTable: React.FC<RecentBookingsTableProps> = ({ bookings, loa
     }
   };
 
-  interface FormatDateOptions {
-    month: 'short' | 'long' | 'numeric' | '2-digit';
-    day: 'numeric' | '2-digit';
-    year: 'numeric' | '2-digit';
-  }
-
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
-    } as FormatDateOptions);
+    });
   };
 
-  interface FormatCurrencyProps {
-    amount: string | number;
-  }
-
-  const formatCurrency = (amount: FormatCurrencyProps['amount']): string => {
+  const formatCurrency = (amount: string | number): string => {
     return `₹${parseFloat(amount as string).toLocaleString()}`;
   };
 
@@ -96,6 +114,25 @@ const RecentBookingsTable: React.FC<RecentBookingsTableProps> = ({ bookings, loa
       <div className="px-4 py-8 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
         <p className="mt-2 text-gray-500">Loading bookings...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-8 text-center">
+        <div className="flex flex-col items-center justify-center">
+          <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+          <p className="text-red-500 mb-4">{error}</p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -213,80 +250,142 @@ const Dashboard = () => {
     todayBookings: 0
   });
   
-  const [recentBookings, setRecentBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
+  const [loadingStates, setLoadingStates] = useState({
+    stats: true,
+    quickStats: true,
+    recentBookings: true
+  });
+  const [errors, setErrors] = useState({
+    stats: null as string | null,
+    quickStats: null as string | null,
+    recentBookings: null as string | null
+  });
 
   const admin_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
+  const RETRY_DELAY = 3000; // 3 seconds
+  const MAX_RETRIES = 3;
+  const REQUEST_TIMEOUT = 8000; // 8 seconds
+
+  // Enhanced fetch with timeout and retry
+  const fetchWithRetry = async (endpoint: string, retries = MAX_RETRIES): Promise<any> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+      
+      const response = await fetch(`${admin_BASE_URL}${endpoint}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchWithRetry(endpoint, retries - 1);
+      }
+      throw err;
+    }
+  };
 
   // Fetch dashboard stats
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL}/dashboard/stats`);
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      const data = await response.json();
+      setLoadingStates(prev => ({ ...prev, stats: true }));
+      setErrors(prev => ({ ...prev, stats: null }));
+      const data = await fetchWithRetry('/dashboard/stats');
       setStats(data);
     } catch (err) {
       console.error('Error fetching stats:', err);
-      setError('Failed to load dashboard stats');
+      setErrors(prev => ({ ...prev, stats: 'Failed to load dashboard stats. Please try again.' }));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, stats: false }));
     }
   };
 
   // Fetch quick access stats
   const fetchQuickStats = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL}/dashboard/quick-stats`);
-      if (!response.ok) throw new Error('Failed to fetch quick stats');
-      const data = await response.json();
+      setLoadingStates(prev => ({ ...prev, quickStats: true }));
+      setErrors(prev => ({ ...prev, quickStats: null }));
+      const data = await fetchWithRetry('/dashboard/quick-stats');
       setQuickStats(data);
     } catch (err) {
       console.error('Error fetching quick stats:', err);
-      setError('Failed to load quick stats');
+      setErrors(prev => ({ ...prev, quickStats: 'Failed to load quick stats. Please try again.' }));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, quickStats: false }));
     }
   };
 
   // Fetch recent bookings
   const fetchRecentBookings = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL}/dashboard/recent-bookings`);
-      if (!response.ok) throw new Error('Failed to fetch recent bookings');
-      const data = await response.json();
+      setLoadingStates(prev => ({ ...prev, recentBookings: true }));
+      setErrors(prev => ({ ...prev, recentBookings: null }));
+      const data = await fetchWithRetry('/dashboard/recent-bookings');
       setRecentBookings(data);
     } catch (err) {
       console.error('Error fetching recent bookings:', err);
-      setError('Failed to load recent bookings');
+      setErrors(prev => ({ ...prev, recentBookings: 'Failed to load recent bookings. Please try again.' }));
+    } finally {
+      setLoadingStates(prev => ({ ...prev, recentBookings: false }));
     }
   };
 
   // Load all data on component mount
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchStats(),
-        fetchQuickStats(),
-        fetchRecentBookings()
-      ]);
-      setLoading(false);
-    };
-
-    loadData();
+    fetchStats();
+    fetchQuickStats();
+    fetchRecentBookings();
   }, []);
+
+  // Refresh all data
+  const refreshAll = () => {
+    fetchStats();
+    fetchQuickStats();
+    fetchRecentBookings();
+  };
+
+  // Check if any component is still loading
+  const anyLoading = Object.values(loadingStates).some(state => state);
+  const anyError = Object.values(errors).some(error => error !== null);
 
   return (
     <div className="space-y-6 pb-16 md:pb-0">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Resort overview and performance metrics</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">Resort overview and performance metrics</p>
+        </div>
+        <button
+          onClick={refreshAll}
+          disabled={anyLoading}
+          className="flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${anyLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
-      {error && (
+      {anyError && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <h3 className="text-sm font-medium text-red-800">There were errors loading some data</h3>
               <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {errors.stats && <li>{errors.stats}</li>}
+                  {errors.quickStats && <li>{errors.quickStats}</li>}
+                  {errors.recentBookings && <li>{errors.recentBookings}</li>}
+                </ul>
               </div>
             </div>
           </div>
@@ -297,31 +396,35 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Total Bookings" 
-          value={loading ? '...' : stats.totalBookings} 
+          value={stats.totalBookings} 
           change={stats.bookingChange} 
           icon={<Calendar className="h-6 w-6 text-blue-600" />} 
           trend="up" 
+          loading={loadingStates.stats}
         />
         <StatCard 
           title="Occupancy Rate" 
-          value={loading ? '...' : stats.occupancyRate} 
+          value={stats.occupancyRate} 
           change={stats.occupancyChange} 
           icon={<Building2 className="h-6 w-6 text-amber-600" />} 
           trend="up" 
+          loading={loadingStates.stats}
         />
         <StatCard 
           title="Revenue" 
-          value={loading ? '...' : stats.revenue} 
+          value={stats.revenue} 
           change={stats.revenueChange} 
           icon={<DollarSign className="h-6 w-6 text-green-600" />} 
           trend="up" 
+          loading={loadingStates.stats}
         />
         <StatCard 
           title="Website Visitors" 
-          value={loading ? '...' : stats.websiteVisitors} 
+          value={stats.websiteVisitors} 
           change={stats.visitorsChange} 
           icon={<Users className="h-6 w-6 text-indigo-600" />} 
           trend="up" 
+          loading={loadingStates.stats}
         />
       </div>
 
@@ -332,28 +435,28 @@ const Dashboard = () => {
           count={quickStats.accommodations} 
           icon={<Building2 className="h-10 w-10 text-blue-600" />} 
           link="/accommodations" 
-          loading={loading}
+          loading={loadingStates.quickStats}
         />
         <QuickAccessCard 
           title="Gallery" 
           count={quickStats.gallery} 
           icon={<Image className="h-10 w-10 text-purple-600" />} 
           link="/gallery" 
-          loading={loading}
+          loading={loadingStates.quickStats}
         />
         <QuickAccessCard 
           title="Services" 
           count={quickStats.services} 
           icon={<Coffee className="h-10 w-10 text-amber-600" />} 
           link="/services" 
-          loading={loading}
+          loading={loadingStates.quickStats}
         />
         <QuickAccessCard 
           title="Today's Bookings" 
           count={quickStats.todayBookings} 
           icon={<Calendar className="h-10 w-10 text-green-600" />} 
           link="/bookings" 
-          loading={loading}
+          loading={loadingStates.quickStats}
         />
       </div>
 
@@ -363,7 +466,12 @@ const Dashboard = () => {
           <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Bookings</h3>
           <p className="mt-1 text-sm text-gray-500">Latest 5 bookings from guests</p>
         </div>
-        <RecentBookingsTable bookings={recentBookings} loading={loading} />
+        <RecentBookingsTable 
+          bookings={recentBookings} 
+          loading={loadingStates.recentBookings} 
+          error={errors.recentBookings}
+          onRetry={fetchRecentBookings}
+        />
       </div>
 
       {/* Revenue Trend Placeholder */}
