@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ArrowLeft, Building2, Plus, X, Save, Trash2, Loader2, MapPin, Users, Package } from 'lucide-react';
 
-const admin_BASE_URL = 'http://31.97.62.213:5000';
+const admin_BASE_URL = 'https://adminplumeria-back.onrender.com';
 
 interface Accommodation {
   id?: number;
@@ -81,7 +81,7 @@ const AccommodationForm: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [propertyImageFiles, setPropertyImageFiles] = useState<File[]>([]);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]); // NEW: Store new image files
   const [amenities, setAmenities] = useState<Amenity[]>([
     { id: 1, name: 'WiFi', icon: 'wifi' },
     { id: 2, name: 'Swimming Pool', icon: 'flame' },
@@ -91,14 +91,12 @@ const AccommodationForm: React.FC = () => {
     { id: 6, name: 'BBQ', icon: 'coffee' },
   ]);
   const [newFeature, setNewFeature] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [newPackageImageUrl, setNewPackageImageUrl] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [uploading, setUploading] = useState(false);
+  const [existingImages, setExistingImages] = useState<string[]>([]); // NEW: Track existing images
 
   useEffect(() => {
     if (isEditing && id) {
@@ -133,6 +131,9 @@ const AccommodationForm: React.FC = () => {
       
       const data = response.data;
       
+      // NEW: Store existing images separately
+      setExistingImages(data.basicInfo.images || []);
+      
       setFormData({
         id: data.id,
         name: data.basicInfo.name || '',
@@ -159,10 +160,7 @@ const AccommodationForm: React.FC = () => {
       });
     } catch (error) {
       console.error('Error fetching accommodation:', error);
-      setSubmitError(
-         
-        'Failed to load accommodation data'
-      );
+      setSubmitError('Failed to load accommodation data');
     } finally {
       setFetching(false);
     }
@@ -252,38 +250,32 @@ const AccommodationForm: React.FC = () => {
     }
   };
 
-  const addImage = () => {
-    if (newImageUrl.trim() && !formData.images.includes(newImageUrl.trim())) {
-      setFormData({
-        ...formData,
-        images: [...formData.images, newImageUrl.trim()],
-      });
-      setNewImageUrl('');
-    }
-  };
-
+  // NEW: Function to handle image removal
   const removeImage = (image: string) => {
-    setFormData({
-      ...formData,
-      images: formData.images.filter(img => img !== image),
-    });
-  };
-
-  const addPackageImage = () => {
-    if (newPackageImageUrl.trim() && !formData.packageImages?.includes(newPackageImageUrl.trim())) {
+    // If it's an existing image, just remove from formData
+    if (existingImages.includes(image)) {
       setFormData({
         ...formData,
-        packageImages: [...(formData.packageImages || []), newPackageImageUrl.trim()],
+        images: formData.images.filter(img => img !== image),
       });
-      setNewPackageImageUrl('');
+    } 
+    // If it's a new image (file), remove from both formData and newImageFiles
+    else {
+      // Find the index of the image in newImageFiles
+      const index = formData.images.indexOf(image);
+      
+      setFormData({
+        ...formData,
+        images: formData.images.filter(img => img !== image),
+      });
+      
+      // Remove the corresponding file
+      setNewImageFiles(prevFiles => {
+        const newFiles = [...prevFiles];
+        newFiles.splice(index, 1);
+        return newFiles;
+      });
     }
-  };
-
-  const removePackageImage = (image: string) => {
-    setFormData({
-      ...formData,
-      packageImages: formData.packageImages?.filter(img => img !== image) || [],
-    });
   };
 
   const validate = () => {
@@ -326,6 +318,15 @@ const AccommodationForm: React.FC = () => {
     setLoading(true);
 
     try {
+      // Upload new images first
+      const uploadedImageUrls = await uploadNewImages();
+
+      // Combine existing images with new uploaded URLs
+      const allImages = [
+        ...formData.images.filter(img => existingImages.includes(img)), // Keep existing images that weren't removed
+        ...uploadedImageUrls
+      ];
+
       const url = isEditing
         ? `${admin_BASE_URL}/admin/properties/accommodations/${id}`
         : `${admin_BASE_URL}/admin/properties/accommodations`;
@@ -340,7 +341,7 @@ const AccommodationForm: React.FC = () => {
           rooms: formData.rooms,
           price: formData.price,
           features: formData.features,
-          images: formData.images,
+          images: allImages, // Use the combined image array
           available: formData.available
         },
         location: {
@@ -377,8 +378,7 @@ const AccommodationForm: React.FC = () => {
       navigate('/accommodations');
     } catch (error) {
       console.error('Error saving accommodation:', error);
-      const errorMessage =
-                           'Failed to save accommodation';
+      const errorMessage = 'Failed to save accommodation';
       setSubmitError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -386,15 +386,15 @@ const AccommodationForm: React.FC = () => {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  // NEW: Upload new image files and return their URLs
+  const uploadNewImages = async (): Promise<string[]> => {
+    if (newImageFiles.length === 0) return [];
+
     setUploading(true);
-    
     const uploadedUrls: string[] = [];
     
     try {
-      for (const file of Array.from(files)) {
+      for (const file of newImageFiles) {
         const formDataFile = new FormData();
         formDataFile.append('image', file);
         
@@ -414,17 +414,33 @@ const AccommodationForm: React.FC = () => {
           );
         }
       }
-      
-      setFormData({
-        ...formData,
-        images: [...formData.images, ...uploadedUrls],
-      });
+      return uploadedUrls;
     } catch (error) {
       console.error('Image upload error:', error);
       toast.error('Failed to upload some images');
+      return [];
     } finally {
       setUploading(false);
     }
+  };
+
+  // NEW: Handle image file selection
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    // Store files for later upload
+    const newFiles = Array.from(files);
+    setNewImageFiles(prev => [...prev, ...newFiles]);
+    
+    // Create preview URLs
+    const previewUrls = newFiles.map(file => URL.createObjectURL(file));
+    
+    // Add preview URLs to form data
+    setFormData({
+      ...formData,
+      images: [...formData.images, ...previewUrls]
+    });
   };
 
   if (fetching) {
@@ -939,7 +955,7 @@ const AccommodationForm: React.FC = () => {
                 type="file"
                 multiple
                 accept="image/*"
-                onChange={handleImageUpload}
+                onChange={handleImageFileChange}
                 className="block w-full text-sm text-gray-500
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-md file:border-0
@@ -985,10 +1001,10 @@ const AccommodationForm: React.FC = () => {
           </Link>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploading}
             className="inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
+            {loading || uploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 {isEditing ? 'Updating...' : 'Creating...'}

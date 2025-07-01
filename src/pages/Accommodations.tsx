@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, Plus, Search, Filter, Edit, Trash2, Eye, XCircle, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-
+ import axios from 'axios';
 interface Accommodation {
   id: number;
   name: string;
@@ -123,36 +123,32 @@ const Accommodations: React.FC = () => {
     }
   };
 
-  // Delete accommodation
-  const handleDelete = async (id: number) => {
-    const isConfirmed = await Swal.fire({
-      title: 'Are you sure?',
-      text: "You won't be able to revert this!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
-    });
 
-    if (!isConfirmed.isConfirmed) return;
+const handleDelete = async (id: number) => {
+  const isConfirmed = await Swal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+  });
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/accommodations/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete accommodation');
-      }
-      
-      setAccommodations(prev => prev.filter(acc => acc.id !== id));
-      Swal.fire('Deleted!', 'Your accommodation has been deleted.', 'success');
-    } catch (err) {
-      Swal.fire('Error!', 'Failed to delete accommodation.', 'error');
-      console.error('Error deleting accommodation:', err);
-    }
-  };
+  if (!isConfirmed.isConfirmed) return;
+
+  try {
+    await axios.delete(`${API_BASE_URL}/accommodations/${id}`);
+    
+    setAccommodations((prev) => prev.filter((acc) => acc.id !== id));
+    
+    await Swal.fire('Deleted!', 'Your accommodation has been deleted.', 'success');
+  } catch (err) {
+    Swal.fire('Error!', 'Failed to delete accommodation.', 'error');
+    console.error('Error deleting accommodation:', err);
+  }
+};
+
 
   // Toggle availability
   const toggleAvailability = async (id: number, currentStatus: boolean) => {
