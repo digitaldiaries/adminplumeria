@@ -3,6 +3,7 @@ import {
   Plus, Search, Trash2, Edit2, XCircle, AlertCircle, CheckCircle,
   Calendar, Users, Percent, Copy, Check as CheckIcon, IndianRupee
 } from 'lucide-react';
+import axios from 'axios';
 
 interface Coupon {
   id: number;
@@ -18,6 +19,7 @@ interface Coupon {
   expiryDate: string;
   createdAt: string;
   updatedAt: string;
+  accommodationType?: string; // <-- Add this line
 }
 
 interface CouponFormData {
@@ -33,6 +35,10 @@ interface CouponFormData {
   accommodationType?: string; // <-- Add this line
 }
 
+interface Accommodation {
+  id: number;
+  name: string
+}
 const API_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
 
 const defaultCoupon: CouponFormData = {
@@ -59,7 +65,32 @@ const Coupons: React.FC = () => {
   const [editingCoupon, setEditingCoupon] = useState<CouponFormData | null>(null);
   const [newCoupon, setNewCoupon] = useState<CouponFormData>({ ...defaultCoupon });
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [accommodation, setAccommodation] = useState<Accommodation[]>([]); // <-- Add this line
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
+
+  const fetchAccommodation = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/properties/accommodations`);
+      console.log('Accommodation response:', response.data);
+
+      const accommodations = response.data?.data;
+
+      if (Array.isArray(accommodations)) {
+        const simplified = accommodations.map((acc: any) => ({
+          id: acc.id,
+          name: acc.name,
+        }));
+        console.log('Fetched accommodations:', simplified);
+        setAccommodation(simplified);
+      } else {
+        console.error('No accommodations found or invalid response shape');
+        setError('No accommodations found');
+      }
+    } catch (error) {
+      console.error('Request error:', error);
+      setError('Failed to connect to server');
+    }
+  }, []);
 
   const fetchCoupons = useCallback(async (search?: string) => {
     try {
@@ -70,7 +101,7 @@ const Coupons: React.FC = () => {
         : `${API_BASE_URL}/coupons`;
       const response = await fetch(url);
       const data = await response.json();
-
+      console.log('Coupons response:', data);
       if (data.success && Array.isArray(data.data)) {
         setCoupons(
           data.data.map((c: any) => ({
@@ -87,6 +118,7 @@ const Coupons: React.FC = () => {
             expiryDate: c.expiryDate,
             createdAt: c.createdAt,
             updatedAt: c.updatedAt,
+            accommodationType: c.accommodationType || 'all', // <-- Add this line
           }))
         );
       } else {
@@ -94,7 +126,7 @@ const Coupons: React.FC = () => {
         setError(data.message || 'Failed to fetch coupons');
       }
       // console.log('Fetched coupons:', data);
-      
+
     } catch (error) {
       setError('Failed to connect to server');
       setCoupons([]);
@@ -105,6 +137,7 @@ const Coupons: React.FC = () => {
 
   useEffect(() => {
     fetchCoupons();
+    fetchAccommodation(); // Fetch accommodation data on component mount
   }, [fetchCoupons]);
 
   useEffect(() => {
@@ -213,15 +246,16 @@ const Coupons: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: newCoupon.code.trim(),
-          discountPercentage: Number(newCoupon.discount),
+          discount: Number(newCoupon.discount),                 // ✅ corrected field name
           discountType: newCoupon.discountType,
           minAmount: newCoupon.minAmount ? Number(newCoupon.minAmount) : null,
           maxDiscount: newCoupon.maxDiscount ? Number(newCoupon.maxDiscount) : null,
           usageLimit: newCoupon.usageLimit ? Number(newCoupon.usageLimit) : null,
           active: newCoupon.active,
           expiryDate: newCoupon.expiryDate,
-          accommodationType: newCoupon.accommodationType || 'all', // <-- Add this line
+          accommodationType: newCoupon.accommodationType || 'all',
         }),
+
       });
 
       const data = await response.json();
@@ -257,15 +291,16 @@ const Coupons: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: editingCoupon.code.trim(),
-          discountPercentage: Number(editingCoupon.discount),
+          discount: Number(editingCoupon.discount),             // ✅ Correct key!
           discountType: editingCoupon.discountType,
           minAmount: editingCoupon.minAmount ? Number(editingCoupon.minAmount) : null,
           maxDiscount: editingCoupon.maxDiscount ? Number(editingCoupon.maxDiscount) : null,
           usageLimit: editingCoupon.usageLimit ? Number(editingCoupon.usageLimit) : null,
           active: editingCoupon.active,
           expiryDate: editingCoupon.expiryDate,
-          accommodationType: editingCoupon.accommodationType || 'all', // <-- Add this line
+          accommodationType: editingCoupon.accommodationType || 'all',
         }),
+
       });
 
       const data = await response.json();
@@ -296,6 +331,7 @@ const Coupons: React.FC = () => {
       usageLimit: coupon.usageLimit?.toString() || '',
       active: coupon.active,
       expiryDate: coupon.expiryDate ? coupon.expiryDate.split('T')[0] : '',
+      accommodationType: coupon.accommodationType || 'all', // <-- Add this line
     });
     setShowEditModal(true);
   };
@@ -430,11 +466,10 @@ const Coupons: React.FC = () => {
             <button
               key={filterType}
               onClick={() => setFilter(filterType)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                filter === filterType
-                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${filter === filterType
+                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
             >
               {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
             </button>
@@ -582,10 +617,9 @@ const Coupons: React.FC = () => {
                             {coupon.usageLimit && (
                               <div className="w-16 bg-gray-200 rounded-full h-1 mt-1">
                                 <div
-                                  className={`h-1 rounded-full transition-all ${
-                                    usagePercentage >= 90 ? 'bg-red-500' :
+                                  className={`h-1 rounded-full transition-all ${usagePercentage >= 90 ? 'bg-red-500' :
                                     usagePercentage >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                                  }`}
+                                    }`}
                                   style={{ width: `${usagePercentage}%` }}
                                 ></div>
                               </div>
@@ -605,13 +639,12 @@ const Coupons: React.FC = () => {
                         <button
                           onClick={() => handleToggleStatus(coupon.id)}
                           disabled={expired || actionLoading === coupon.id}
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            expired
-                              ? 'bg-red-100 text-red-800 cursor-not-allowed'
-                              : coupon.active
-                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${expired
+                            ? 'bg-red-100 text-red-800 cursor-not-allowed'
+                            : coupon.active
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                            }`}
                         >
                           {actionLoading === coupon.id ? (
                             <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin mr-1"></div>
@@ -780,22 +813,24 @@ const Coupons: React.FC = () => {
                         </div>
                         <div>
                           <label htmlFor="accommodationType" className="block text-sm font-medium text-gray-700">
-                            Accommodation Type
+                            Accommodation
                           </label>
                           <select
                             id="accommodationType"
                             name="accommodationType"
                             value={newCoupon.accommodationType || 'all'}
-                            onChange={e => setNewCoupon({ ...newCoupon, accommodationType: e.target.value })}
+                            onChange={(e) => setNewCoupon({ ...newCoupon, accommodationType: e.target.value })}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             required
                           >
                             <option value="all">All</option>
-                            <option value="Resort">Resort (Active)</option>
-                            <option value="Hotel">Hotel (Active)</option>
-                            <option value="Camping">Camping (Inactive)</option>
-                            <option value="Villa">Villa</option>
+                            {accommodation.map((acc) => (
+                              <option key={acc.id} value={acc.name}>
+                                {acc.name}
+                              </option>
+                            ))}
                           </select>
+
                         </div>
                         <div className="flex items-center">
                           <input
@@ -971,22 +1006,25 @@ const Coupons: React.FC = () => {
                         </div>
                         <div>
                           <label htmlFor="edit-accommodationType" className="block text-sm font-medium text-gray-700">
-                            Accommodation Type
+                            Accommodation
                           </label>
                           <select
                             id="edit-accommodationType"
                             name="edit-accommodationType"
-                            value={editingCoupon.accommodationType || 'all'}
-                            onChange={e => setEditingCoupon({ ...editingCoupon, accommodationType: e.target.value })}
+                            value={editingCoupon.accommodationType}
+                            onChange={(e) => setEditingCoupon({ ...editingCoupon, accommodationType: e.target.value })}
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             required
                           >
                             <option value="all">All</option>
-                            <option value="Resort">Resort (Active)</option>
-                            <option value="Hotel">Hotel (Active)</option>
-                            <option value="Camping">Camping (Inactive)</option>
-                            <option value="Villa">Villa</option>
+                            {accommodation.map((acc) => (
+                              <option key={acc.id} value={acc.name}>
+                                {acc.name}
+                              </option>
+                            ))}
                           </select>
+
+
                         </div>
                         <div className="flex items-center">
                           <input
