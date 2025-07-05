@@ -34,7 +34,7 @@
 //       setLoading(true);
 //       const response = await fetch(`${admin_BASE_URL}/admin/calendar/blocked-dates`);
 //       const data = await response.json();
-      
+
 //       if (data.success) {
 //         setBlockedDates(data.data);
 //       } else {
@@ -91,7 +91,7 @@
 //   const handleDayClick = (day: Date) => {
 //     const dayStr = format(day, 'yyyy-MM-dd');
 //     const isBlocked = blockedDates.some((blocked: BlockedDate) => blocked.blocked_date === dayStr);
-    
+
 //     if (isBlocked) {
 //       // If clicking on a blocked date, allow editing
 //       const blockedDate = blockedDates.find((blocked: BlockedDate) => blocked.blocked_date === dayStr);
@@ -142,7 +142,7 @@
 //       console.log("selectedAccommodationId",selectedAccommodationId)
 //       console.log("adultPrice",adultPrice)
 //       console.log("childPrice",childPrice)
-      
+
 //       // Send all fields, backend should handle what to do
 //       const response = await fetch(
 //         editingDate
@@ -197,7 +197,7 @@
 //       });
 
 //       const data = await response.json();
-      
+
 //       if (data.success) {
 //         setSuccess('Blocked date removed successfully');
 //         await fetchBlockedDates();
@@ -256,15 +256,15 @@
 //     const lastDay = new Date(year, month + 1, 0);
 //     const startDate = new Date(firstDay);
 //     startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
+
 //     const days = [];
 //     const current = new Date(startDate);
-    
+
 //     for (let i = 0; i < 42; i++) {
 //       days.push(new Date(current));
 //       current.setDate(current.getDate() + 1);
 //     }
-    
+
 //     return days;
 //   };
 
@@ -414,7 +414,7 @@
 //                   <X className="h-5 w-5" />
 //                 </button>
 //               </div>
-              
+
 //               <div className="space-y-4">
 //                 <div>
 //                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -544,7 +544,7 @@
 //             <h3 className="text-lg font-semibold text-gray-900 mb-4">
 //               Currently Blocked Dates ({blockedDates.length})
 //             </h3>
-            
+
 //             {blockedDates.length === 0 ? (
 //               <p className="text-gray-500 text-sm">No dates are currently blocked.</p>
 //             ) : (
@@ -608,22 +608,19 @@
 // };
 
 // export default Calendar;
-
-
-
 import { useState, useEffect } from 'react';
 import { format, isBefore, startOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
 // API Configuration
-const admin_BASE_URL = 'https://adminplumeria-back.onrender.com/admin/calendar';
-// const admin_BASE_URL = 'https://plumeriaadminback-production.up.railway.app/admin/calendar';
+const admin_BASE_URL = 'https://a.plumeriaretreat.com/admin/calendar';
 
 // Types
 interface Accommodation {
   id: number;
   name: string;
   type: string;
+  rooms: number;
 }
 
 interface BlockedDate {
@@ -632,6 +629,7 @@ interface BlockedDate {
   reason?: string;
   accommodation_id?: number;
   accommodation_name?: string;
+  rooms?: number | null; // null = all rooms, number = specific room
   adult_price?: number | null;
   child_price?: number | null;
 }
@@ -649,6 +647,7 @@ const Calendar = () => {
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [reason, setReason] = useState('');
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<number | null>(null); // null = all rooms
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -665,9 +664,9 @@ const Calendar = () => {
       setLoading(true);
       const response = await fetch(`${admin_BASE_URL}/blocked-dates`);
       if (!response.ok) throw new Error('Failed to fetch blocked dates');
-      
+
       const data: ApiResponse = await response.json();
-      
+
       if (data.success) {
         setBlockedDates(data.data);
       } else {
@@ -683,12 +682,12 @@ const Calendar = () => {
 
   const fetchAccommodations = async () => {
     try {
-      const response = await fetch(`${admin_BASE_URL.replace('/calendar', '')}/properties/accommodations`);
+      const response = await fetch(`https://a.plumeriaretreat.com/admin/properties/accommodations`);
       if (!response.ok) throw new Error('Failed to fetch accommodations');
-      
-      const data: ApiResponse = await response.json();
-      if (data.success) {
-        setAccommodations(data.data || []);
+
+      const data = await response.json();
+      if (data.data.length > 0) {
+        setAccommodations(data.data);
       }
     } catch (err) {
       console.error('Error fetching accommodations:', err);
@@ -715,7 +714,7 @@ const Calendar = () => {
   // Date handlers
   const handleDayClick = (day: Date) => {
     const dayStr = format(day, 'yyyy-MM-dd');
-    
+
     // Check if date is in the past
     if (isBefore(startOfDay(day), startOfDay(new Date()))) {
       setError('Cannot block or modify past dates');
@@ -723,13 +722,14 @@ const Calendar = () => {
     }
 
     const isBlocked = blockedDates.some(b => b.blocked_date === dayStr);
-    
+
     if (isBlocked) {
       const blockedDate = blockedDates.find(b => b.blocked_date === dayStr);
       if (blockedDate) {
         setEditingDate(blockedDate);
         setReason(blockedDate.reason || '');
         setSelectedAccommodationId(blockedDate.accommodation_id || null);
+        setSelectedRoom(blockedDate.rooms || null);
         setAdultPrice(blockedDate.adult_price || '');
         setChildPrice(blockedDate.child_price || '');
         setShowForm(true);
@@ -738,7 +738,7 @@ const Calendar = () => {
     }
 
     const isSelected = selectedDays.some(d => format(d, 'yyyy-MM-dd') === dayStr);
-    setSelectedDays(isSelected 
+    setSelectedDays(isSelected
       ? selectedDays.filter(d => format(d, 'yyyy-MM-dd') !== dayStr)
       : [...selectedDays, day]
     );
@@ -774,19 +774,20 @@ const Calendar = () => {
 
     try {
       setLoading(true);
-      const dates = editingDate 
-        ? [editingDate.blocked_date] 
+      const dates = editingDate
+        ? [editingDate.blocked_date]
         : selectedDays.map(day => format(day, 'yyyy-MM-dd'));
 
       const payload = {
         dates,
         reason: actionType === 'price' ? null : reason,
         accommodation_id: selectedAccommodationId,
+        room_number: selectedRoom, // null = all rooms
         adult_price: adultPrice === '' ? null : adultPrice,
         child_price: childPrice === '' ? null : childPrice
       };
 
-      const url = editingDate 
+      const url = editingDate
         ? `${admin_BASE_URL}/blocked-dates/${editingDate.id}`
         : `${admin_BASE_URL}/blocked-dates`;
 
@@ -829,7 +830,7 @@ const Calendar = () => {
       if (!response.ok) throw new Error('Delete failed');
 
       const data: ApiResponse = await response.json();
-      
+
       if (data.success) {
         setSuccess('Date unblocked successfully');
         await fetchBlockedDates();
@@ -850,6 +851,7 @@ const Calendar = () => {
     setSelectedDays([]);
     setReason('');
     setSelectedAccommodationId(null);
+    setSelectedRoom(null);
     setEditingDate(null);
     setAdultPrice('');
     setChildPrice('');
@@ -886,15 +888,15 @@ const Calendar = () => {
     const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
+
     const days = [];
     const current = new Date(startDate);
-    
+
     for (let i = 0; i < 42; i++) {
       days.push(new Date(current));
       current.setDate(current.getDate() + 1);
     }
-    
+
     return days;
   };
 
@@ -904,9 +906,15 @@ const Calendar = () => {
     setCurrentDate(newDate);
   };
 
+  // Get current accommodation
+  const getCurrentAccommodation = () => {
+    return accommodations.find(a => a.id === selectedAccommodationId);
+  };
+
   // Render
   const calendarDays = generateCalendarDays();
   const monthYear = format(currentDate, 'MMMM yyyy');
+  const currentAccommodation = getCurrentAccommodation();
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -1000,8 +1008,8 @@ const Calendar = () => {
                     ${className.includes('blocked-date-red') ? 'bg-red-100 text-red-700 font-semibold' : ''}
                     ${className.includes('price-date-green') ? 'bg-green-100 text-green-700 font-semibold' : ''}
                     ${className.includes('selected-date') ? 'bg-blue-100 text-blue-700 font-semibold' : ''}
-                    ${!className.includes('blocked-date-red') && 
-                      !className.includes('price-date-green') && 
+                    ${!className.includes('blocked-date-red') &&
+                      !className.includes('price-date-green') &&
                       !className.includes('selected-date') ? 'hover:bg-gray-100' : ''}
                     ${loading ? 'cursor-not-allowed' : 'cursor-pointer'}
                     ${isBefore(startOfDay(day), startOfDay(new Date())) ? 'opacity-50' : ''}
@@ -1047,7 +1055,7 @@ const Calendar = () => {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1068,7 +1076,11 @@ const Calendar = () => {
                   <select
                     id="accommodationSelect"
                     value={selectedAccommodationId || ''}
-                    onChange={(e) => setSelectedAccommodationId(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => {
+                      const id = e.target.value ? Number(e.target.value) : null;
+                      setSelectedAccommodationId(id);
+                      setSelectedRoom(null); // Reset room selection
+                    }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={loading}
                   >
@@ -1080,6 +1092,30 @@ const Calendar = () => {
                     ))}
                   </select>
                 </div>
+
+                {selectedAccommodationId && currentAccommodation?.rooms && currentAccommodation.rooms > 1 && (
+                  <div>
+                    <label htmlFor="roomSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Room
+                    </label>
+                    <select
+                      id="roomSelect"
+                      value={selectedRoom !== null ? selectedRoom : ''}
+                      onChange={(e) => 
+                        setSelectedRoom(e.target.value ? Number(e.target.value) : null)
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loading}
+                    >
+                      <option value="">All Rooms</option>
+                      {Array.from({ length: currentAccommodation.rooms }, (_, i) => i + 1).map(roomNumber => (
+                        <option key={roomNumber} value={roomNumber}>
+                          {roomNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1165,7 +1201,7 @@ const Calendar = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Currently Blocked Dates ({blockedDates.length})
             </h3>
-            
+
             {blockedDates.length === 0 ? (
               <p className="text-gray-500 text-sm">No dates are currently blocked.</p>
             ) : (
@@ -1173,9 +1209,8 @@ const Calendar = () => {
                 {blockedDates.map((date) => (
                   <div
                     key={date.id}
-                    className={`flex items-center justify-between p-3 rounded-md ${
-                      date.reason ? 'bg-red-50' : 'bg-green-50'
-                    }`}
+                    className={`flex items-center justify-between p-3 rounded-md ${date.reason ? 'bg-red-50' : 'bg-green-50'
+                      }`}
                   >
                     <div className="flex-1">
                       <div className="font-medium text-sm text-gray-900">
@@ -1185,6 +1220,7 @@ const Calendar = () => {
                         <div className="text-xs text-blue-600 flex items-center mt-1">
                           <Building2 className="h-3 w-3 mr-1" />
                           {date.accommodation_name}
+                          {date.rooms === null ? ' - All Rooms' : ` - Room ${date.rooms}`}
                         </div>
                       )}
                       {date.reason && (
@@ -1204,6 +1240,7 @@ const Calendar = () => {
                           setEditingDate(date);
                           setReason(date.reason || '');
                           setSelectedAccommodationId(date.accommodation_id || null);
+                          setSelectedRoom(date.rooms || null);
                           setAdultPrice(date.adult_price || '');
                           setChildPrice(date.child_price || '');
                           setShowForm(true);
