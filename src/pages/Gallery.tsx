@@ -48,7 +48,7 @@ const Gallery = () => {
     alt_text: '',
     description: ''
   });
-  const API_BASE_URL = 'https://adminplumeria-back.onrender.com'; // Change to your backend URL
+  const API_BASE_URL = 'https://a.plumeriaretreat.com'; // Change to your backend URL
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const filters = [

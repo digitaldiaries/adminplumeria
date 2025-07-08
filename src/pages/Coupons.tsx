@@ -39,7 +39,7 @@ interface Accommodation {
   id: number;
   name: string
 }
-const API_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
+const API_BASE_URL = 'https://a.plumeriaretreat.com/admin';
 
 const defaultCoupon: CouponFormData = {
   code: '',

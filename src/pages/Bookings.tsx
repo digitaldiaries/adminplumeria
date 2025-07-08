@@ -91,7 +91,7 @@ const Bookings: React.FC = () => {
     totalPages: 1
   });
 
-  const API_BASE_URL = 'https://adminplumeria-back.onrender.com/admin';
+  const API_BASE_URL = 'https://a.plumeriaretreat.com/admin';
 
   const mapApiBookingToBooking = (apiBooking: ApiBooking): Booking => {
     let paymentStatus: 'Paid' | 'Partial' | 'Unpaid' | 'Pending' = 'Pending';

@@ -48,7 +48,7 @@ const CategoryForm: React.FC = () => {
   const fetchCategory = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://adminplumeria-back.onrender.com/admin/categories/${id}`);
+      const response = await fetch(`https://a.plumeriaretreat.com/admin/categories/${id}`);
       if (!response.ok) throw new Error('Category not found');
       const data = await response.json();
       setFormData(data);
@@ -91,8 +91,8 @@ const CategoryForm: React.FC = () => {
       setError('');
 
       const url = isEditing
-        ? `https://adminplumeria-back.onrender.com/admin/categories/${id}`
-        : 'https://adminplumeria-back.onrender.com/admin/categories';
+        ? `https://a.plumeriaretreat.com/admin/categories/${id}`
+        : 'https://a.plumeriaretreat.com/admin/categories';
 
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
