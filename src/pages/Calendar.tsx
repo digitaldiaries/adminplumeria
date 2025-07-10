@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { format, isBefore, startOfDay } from 'date-fns';
+import { format, isBefore, startOfDay, addDays } from 'date-fns';
 import { Calendar as CalendarIcon, X, Trash2, Edit2, AlertCircle, CheckCircle, Building2 } from 'lucide-react';
 
 // API Configuration
 const admin_BASE_URL = 'https://a.plumeriaretreat.com/admin/calendar';
 
-// Updated Accommodation interface to include package pricing
 interface Accommodation {
   id: number;
   name: string;
@@ -27,7 +26,7 @@ interface BlockedDate {
   reason?: string;
   accommodation_id?: number;
   accommodation_name?: string;
-  rooms?: number | null; // null = all rooms, number = specific room
+  rooms?: number | null;
   adult_price?: number | null;
   child_price?: number | null;
 }
@@ -45,7 +44,7 @@ const Calendar = () => {
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [reason, setReason] = useState('');
   const [selectedAccommodationId, setSelectedAccommodationId] = useState<number | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<number | null>(null); // null = all rooms
+  const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -64,7 +63,6 @@ const Calendar = () => {
       if (!response.ok) throw new Error('Failed to fetch blocked dates');
 
       const data: ApiResponse = await response.json();
-
       if (data.success) {
         setBlockedDates(data.data);
       } else {
@@ -98,7 +96,6 @@ const Calendar = () => {
     fetchAccommodations();
   }, []);
 
-  // Clear messages after 5 seconds
   useEffect(() => {
     if (error || success) {
       const timer = setTimeout(() => {
@@ -109,7 +106,6 @@ const Calendar = () => {
     }
   }, [error, success]);
 
-  // NEW: Helper to get default accommodation prices
   const getDefaultPrices = (accommodationId: number | null) => {
     if (!accommodationId) return { adult: null, child: null };
     
@@ -122,15 +118,16 @@ const Calendar = () => {
     };
   };
 
-  // Date handlers
   const handleDayClick = (day: Date) => {
     const dayStr = format(day, 'yyyy-MM-dd');
 
-    // Check if date is in the past
     if (isBefore(startOfDay(day), startOfDay(new Date()))) {
       setError('Cannot block or modify past dates');
       return;
     }
+
+    const blockedStatus = getBlockStatusForDate(day);
+    if (blockedStatus?.isFullyBlocked) return;
 
     const isBlocked = blockedDates.some(b => b.blocked_date === dayStr);
 
@@ -154,7 +151,6 @@ const Calendar = () => {
       : [...selectedDays, day]
     );
     
-    // Set default prices when accommodation is selected
     if (selectedAccommodationId) {
       const defaultPrices = getDefaultPrices(selectedAccommodationId);
       setAdultPrice(defaultPrices.adult || '');
@@ -164,13 +160,11 @@ const Calendar = () => {
     setShowForm(true);
   };
 
-  // NEW: Accommodation change handler
   const handleAccommodationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value ? Number(e.target.value) : null;
     setSelectedAccommodationId(id);
-    setSelectedRoom(null); // Reset room selection
+    setSelectedRoom(null);
     
-    // Set default prices when accommodation changes
     if (id) {
       const defaultPrices = getDefaultPrices(id);
       setAdultPrice(defaultPrices.adult || '');
@@ -181,7 +175,6 @@ const Calendar = () => {
     }
   };
 
-  // Save handlers
   const validateForm = (): boolean => {
     if (!reason && (adultPrice === '' && childPrice === '')) {
       setError('Please provide a reason or set prices');
@@ -218,7 +211,7 @@ const Calendar = () => {
         dates,
         reason: actionType === 'price' ? null : reason,
         accommodation_id: selectedAccommodationId,
-        room_number: selectedRoom, // null = all rooms
+        room_number: selectedRoom,
         adult_price: adultPrice === '' ? null : adultPrice,
         child_price: childPrice === '' ? null : childPrice
       };
@@ -281,7 +274,6 @@ const Calendar = () => {
     }
   };
 
-  // Helpers
   const resetForm = () => {
     setShowForm(false);
     setSelectedDays([]);
@@ -293,30 +285,25 @@ const Calendar = () => {
     setChildPrice('');
   };
 
-  const isDateBlocked = (date: Date) => {
-    return blockedDates.some(b => b.blocked_date === format(date, 'yyyy-MM-dd'));
-  };
-
-  const getDayClassName = (date: Date) => {
+  const getBlockStatusForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const blocked = blockedDates.find(b => b.blocked_date === dateStr);
-
-    let className = 'calendar-day';
-
-    if (blocked) {
-      if (blocked.reason) {
-        className += ' blocked-date-red';
-      } else if (blocked.adult_price || blocked.child_price) {
-        className += ' price-date-green';
-      }
-    } else if (selectedDays.some(d => format(d, 'yyyy-MM-dd') === dateStr)) {
-      className += ' selected-date';
-    }
-
-    return className;
+    const blockedDatesForDay = blockedDates.filter(b => b.blocked_date === dateStr);
+    
+    if (blockedDatesForDay.length === 0) return null;
+    
+    const isFullyBlocked = blockedDatesForDay.some(b => b.rooms === null);
+    const hasPartialBlocks = blockedDatesForDay.some(b => b.rooms !== null);
+    const hasPriceChanges = blockedDatesForDay.some(b => b.adult_price || b.child_price);
+    const hasReason = blockedDatesForDay.some(b => b.reason);
+    
+    return {
+      isFullyBlocked,
+      hasPartialBlocks,
+      hasPriceChanges,
+      hasReason
+    };
   };
 
-  // Calendar generation
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -342,15 +329,11 @@ const Calendar = () => {
     setCurrentDate(newDate);
   };
 
-  // Get current accommodation
   const getCurrentAccommodation = () => {
     return accommodations.find(a => a.id === selectedAccommodationId);
   };
 
-  // NEW: Get default prices for current accommodation
   const defaultPrices = getDefaultPrices(selectedAccommodationId);
-
-  // Render
   const calendarDays = generateCalendarDays();
   const monthYear = format(currentDate, 'MMMM yyyy');
   const currentAccommodation = getCurrentAccommodation();
@@ -433,46 +416,94 @@ const Calendar = () => {
             {calendarDays.map((day, index) => {
               const isCurrentMonth = day.getMonth() === currentDate.getMonth();
               const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-              const className = getDayClassName(day);
+              const blockedStatus = getBlockStatusForDate(day);
+              const isSelected = selectedDays.some(d => format(d, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
+
+              let dayClasses = [
+                'p-2',
+                'text-sm',
+                'rounded-md',
+                'transition-colors',
+                !isCurrentMonth ? 'text-gray-300' : 'text-gray-700',
+                isToday ? 'ring-2 ring-blue-500' : '',
+                loading ? 'cursor-not-allowed' : 'cursor-pointer',
+                isBefore(startOfDay(day), startOfDay(new Date())) ? 'opacity-50' : ''
+              ];
+
+              if (blockedStatus) {
+                if (blockedStatus.isFullyBlocked) {
+                  dayClasses.push(
+                    'bg-red-100',
+                    'text-gray-400',
+                    'line-through',
+                    'cursor-not-allowed'
+                  );
+                } else if (blockedStatus.hasPartialBlocks) {
+                  dayClasses.push(
+                    'bg-yellow-100',
+                    'relative',
+                    'partially-blocked'
+                  );
+                } else if (blockedStatus.hasPriceChanges) {
+                  dayClasses.push(
+                    'bg-green-100',
+                    'text-green-700'
+                  );
+                }
+              } else if (isSelected) {
+                dayClasses.push(
+                  'bg-blue-500',
+                  'text-white',
+                  'rounded-full',
+                  'hover:bg-blue-600',
+                  'focus:bg-blue-600'
+                );
+              } else {
+                dayClasses.push(
+                  'hover:bg-gray-100'
+                );
+              }
 
               return (
                 <button
                   key={index}
                   onClick={() => handleDayClick(day)}
-                  disabled={loading || isBefore(startOfDay(day), startOfDay(new Date()))}
-                  className={`
-                    p-2 text-sm rounded-md transition-colors
-                    ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-700'}
-                    ${isToday ? 'ring-2 ring-blue-500' : ''}
-                    ${className.includes('blocked-date-red') ? 'bg-red-100 text-red-700 font-semibold' : ''}
-                    ${className.includes('price-date-green') ? 'bg-green-100 text-green-700 font-semibold' : ''}
-                    ${className.includes('selected-date') ? 'bg-blue-100 text-blue-700 font-semibold' : ''}
-                    ${!className.includes('blocked-date-red') &&
-                      !className.includes('price-date-green') &&
-                      !className.includes('selected-date') ? 'hover:bg-gray-100' : ''}
-                    ${loading ? 'cursor-not-allowed' : 'cursor-pointer'}
-                    ${isBefore(startOfDay(day), startOfDay(new Date())) ? 'opacity-50' : ''}
-                  `}
+                  disabled={loading || isBefore(startOfDay(day), startOfDay(new Date())) || 
+                            (blockedStatus?.isFullyBlocked)}
+                  className={dayClasses.join(' ')}
                 >
                   {day.getDate()}
+                  {blockedStatus?.hasPartialBlocks && (
+                    <span className="absolute bottom-1 right-1 w-1 h-1 bg-yellow-500 rounded-full"></span>
+                  )}
                 </button>
               );
             })}
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 mt-4 text-sm">
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-red-100 border border-red-300 rounded mr-2"></div>
-              <span>Blocked dates</span>
+              <div className="w-4 h-4 bg-red-100 mr-2"></div>
+              <span>Fully Blocked</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded mr-2"></div>
-              <span>Price-set only</span>
+              <div className="w-4 h-4 bg-yellow-100 mr-2 relative">
+                <span className="absolute bottom-0 right-0 w-1 h-1 bg-yellow-500 rounded-full"></span>
+              </div>
+              <span>Partially Blocked</span>
             </div>
             <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded mr-2"></div>
-              <span>Selected dates</span>
+              <div className="w-4 h-4 bg-green-100 mr-2"></div>
+              <span>Price Changes</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-blue-500 mr-2 rounded-full"></div>
+              <span>Selected</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-white border border-gray-300 mr-2"></div>
+              <span>Available</span>
             </div>
           </div>
         </div>
@@ -567,7 +598,6 @@ const Calendar = () => {
                   />
                 </div>
 
-                {/* Price Inputs with default references */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="adultPrice" className="block text-sm font-medium text-gray-700 mb-1">

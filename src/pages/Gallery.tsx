@@ -110,7 +110,7 @@ const Gallery = () => {
 
         // Upload to PHP endpoint
         console.log('Uploading file:', formData.get('image'));
-        const res = await fetch('https://plumeriaretreat.com/upload_gallery.php', {
+        const res = await fetch('https://plumeriaretreat.com/upload.php', {
           method: 'POST',
           body: formData,
         });
@@ -126,7 +126,7 @@ const Gallery = () => {
 
         if (data.success && data.filename) {
           uploadedImages.push({
-            src: `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${data.filename}`,
+            src: data.url,
             alt: details.alt_text || file.name,
           });
         } else {

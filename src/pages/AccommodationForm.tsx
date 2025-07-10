@@ -399,7 +399,7 @@ const AccommodationForm: React.FC = () => {
         formDataFile.append('image', file);
         
         const res = await axios.post(
-          'https://plumeriaretreat.com/upload_gallery.php',
+          'https://plumeriaretreat.com/upload.php',
           formDataFile,
           {
             headers: { 
@@ -407,10 +407,10 @@ const AccommodationForm: React.FC = () => {
             },
           }
         );
-        
+        console.log('Upload response:', res.data);
         if (res.data.success && res.data.filename) {
           uploadedUrls.push(
-            `https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/${res.data.filename}`
+            res.data.url
           );
         }
       }
