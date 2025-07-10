@@ -61,7 +61,7 @@ const Users: React.FC = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch('https://adminplumeria-back.onrender.com/admin/users');
+        const response = await fetch('https://a.plumeriaretreat.com/admin/users');
         if (!response.ok) {
           throw new Error('Failed to fetch users');
         }
