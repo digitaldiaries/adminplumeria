@@ -190,21 +190,10 @@ const Gallery = () => {
 
     try {
       // 1. Delete from PHP server first
-      if (imageUrl) {
-        const filename = imageUrl.split('/').pop();
-        const formData = new FormData();
-        formData.append('filename', filename || '');
+      
 
-        const phpRes = await fetch('https://plumeriaretreat.com/a5dbGH68rey3jg/gallery/delete.php', {
-          method: 'POST',
-          body: formData,
-          // Do NOT set Content-Type header!
-        });
-        const phpData = await phpRes.json();
-        if (!phpData.success) {
-          throw new Error(phpData.message || 'Failed to delete image from server');
-        }
-      }
+        
+        
 
       // 2. Delete from your backend DB
       const response = await fetch(`${API_BASE_URL}/admin/gallery/${imageId}`, {
