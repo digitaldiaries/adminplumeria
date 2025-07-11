@@ -14,6 +14,8 @@ interface Accommodation {
   address: string;
   latitude: number;
   longitude: number;
+  adultPrice?: number;
+  childPrice?: number;
 }
 
 interface Coupon {
@@ -32,9 +34,12 @@ const CreateBooking: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+  const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
   const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+
   const [formData, setFormData] = useState({
     guest_name: '',
     guest_email: '',
@@ -71,7 +76,7 @@ const CreateBooking: React.FC = () => {
         setLoading(true);
         const response = await fetch(`${_BASE_URL}/admin/properties/accommodations`);
         const data = await response.json();
-        
+
         const accommodationsData = data.data || [];
         if (Array.isArray(accommodationsData)) {
           setAccommodations(accommodationsData);
@@ -98,7 +103,7 @@ const CreateBooking: React.FC = () => {
             `${_BASE_URL}/admin/coupons?search=${formData.coupon_code}`
           );
           const data = await response.json();
-          
+
           if (data.success && Array.isArray(data.data)) {
             setAvailableCoupons(data.data.filter((c: Coupon) => c.active));
           } else {
@@ -117,45 +122,6 @@ const CreateBooking: React.FC = () => {
     }
   }, [formData.coupon_code]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCouponSelect = (coupon: Coupon) => {
-    setFormData(prev => ({
-      ...prev,
-      coupon_code: coupon.code,
-      discounted_amount: calculateDiscount(prev.total_amount, coupon)
-    }));
-    setAvailableCoupons([]);
-  };
-
-  const calculateDiscount = (totalAmount: string, coupon: Coupon): string => {
-    if (!totalAmount || !coupon) return '';
-    
-    const total = parseFloat(totalAmount);
-    const discount = parseFloat(coupon.discount);
-    const minAmount = coupon.minAmount ? parseFloat(coupon.minAmount) : 0;
-    const maxDiscount = coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : Infinity;
-
-    if (total < minAmount) {
-      alert(`Coupon requires minimum amount of ₹${minAmount}`);
-      return '';
-    }
-
-    let discountedAmount = total;
-    
-    if (coupon.discountType === 'percentage') {
-      const discountValue = total * (discount / 100);
-      const finalDiscount = Math.min(discountValue, maxDiscount);
-      discountedAmount = total - finalDiscount;
-    } else {
-      discountedAmount = total - discount;
-    }
-
-    return discountedAmount.toFixed(2);
-  };
   const downloadPdf = (
     email: string,
     name: string,
@@ -533,7 +499,7 @@ const CreateBooking: React.FC = () => {
                                         <p style="padding-bottom: 5px;margin: 0px;">Mobile: <b>${mobile}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Check In: <b>${BookingDate}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Check Out: <b>${CheckoutDate}</b></p>
-                                        <p style="padding-bottom: 5px;margin: 0px;">Total Person: <b>${totalPerson}</b></p>
+                                        <p style="padding-bottom: 5px;margin: 0px;">Total Room: <b>${totalPerson}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Adult: <b>${adult}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Child: <b>${child}</b></p>
                                         <p style="padding-bottom: 5px;margin: 0px;">Veg Count: <b>${vegCount}</b></p>
@@ -751,268 +717,255 @@ const CreateBooking: React.FC = () => {
     });
 
 
+  }
+  const fetchAccommodationDetails = async (id: string) => {
+    try {
+      const response = await fetch(`${_BASE_URL}/admin/properties/accommodations/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch accommodation details');
+      }
+      const data = await response.json();
+      const accommodation: Accommodation = {
+        id: data.id,
+        name: data.basicInfo.name,
+        description: data.basicInfo.description,
+        price: data.basicInfo.price,
+        available_rooms: data.basicInfo.rooms,
+        amenities: data.amenities,
+        address: data.location.address,
+        latitude: data.location.coordinates.latitude,
+        longitude: data.location.coordinates.longitude,
+        adultPrice: data.packages.pricing.adult,
+        childPrice: data.packages.pricing.child
+      };
+      setSelectedAccommodation(accommodation);
+    } catch (error) {
+      console.error('Error fetching accommodation details:', error);
     }
-  const calculateTotalAmount = () => {
-    const selectedAccommodation = accommodations.find(acc => acc.id === parseInt(formData.accommodation_id));
-    
-    if (!selectedAccommodation || !formData.check_in || !formData.check_out) return;
+  }
 
-    const checkIn = new Date(formData.check_in);
-    const checkOut = new Date(formData.check_out);
-    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-    
-    const total = selectedAccommodation.price * nights * parseInt(formData.rooms);
-    
-    setFormData(prev => ({ 
-      ...prev, 
-      total_amount: total.toFixed(2),
-      discounted_amount: prev.coupon_code ? calculateDiscount(total.toString(), availableCoupons.find(c => c.code === prev.coupon_code)!) : ''
-    }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    // Reset coupon when coupon code changes
+    if (name === 'coupon_code') {
+      setAppliedCoupon(null);
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleCouponSelect = (coupon: Coupon) => {
+    setAppliedCoupon(coupon);
+    setFormData(prev => ({
+      ...prev,
+      coupon_code: coupon.code
+    }));
+    setAvailableCoupons([]);
+  };
   useEffect(() => {
-    if (formData.check_in && formData.check_out && formData.accommodation_id) {
-      calculateTotalAmount();
+    // Auto-set check_out to next day when check_in changes
+    if (formData.check_in) {
+      const nextDay = new Date(formData.check_in);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayString = nextDay.toISOString().split('T')[0];
+      
+      // Only set if check_out is empty or before/equal to check_in
+      if (!formData.check_out || new Date(formData.check_out) <= new Date(formData.check_in)) {
+        setFormData(prev => ({ ...prev, check_out: nextDayString }));
+      }
     }
-  }, [formData.check_in, formData.check_out, formData.accommodation_id, formData.rooms]);
+  }, [formData.check_in]);
+
+  const calculateDiscount = (totalAmount: string, coupon: Coupon): string => {
+    if (!totalAmount || !coupon) return totalAmount;
+
+    const total = parseFloat(totalAmount);
+    const discount = parseFloat(coupon.discount);
+    const minAmount = coupon.minAmount ? parseFloat(coupon.minAmount) : 0;
+    const maxDiscount = coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : Infinity;
+
+    if (total < minAmount) {
+      return totalAmount; // Skip discount if min amount not met
+    }
+
+    let discountedAmount = total;
+
+    if (coupon.discountType === 'percentage') {
+      const discountValue = total * (discount / 100);
+      const finalDiscount = Math.min(discountValue, maxDiscount);
+      discountedAmount = total - finalDiscount;
+    } else {
+      discountedAmount = total - discount;
+    }
+
+    return discountedAmount.toFixed(2);
+  };
+
+  // Calculate total whenever relevant values change
+  useEffect(() => {
+    if (!selectedAccommodation) {
+      setFormData(prev => ({
+        ...prev,
+        total_amount: '',
+        discounted_amount: ''
+      }));
+      return;
+    }
+
+    const adults = parseInt(formData.adults) || 0;
+    const children = parseInt(formData.children) || 0;
+    const rooms = parseInt(formData.rooms) || 0;
+
+    const adultPrice = (selectedAccommodation.adultPrice || 0) * adults * rooms;
+    const childPrice = (selectedAccommodation.childPrice || 0) * children * rooms;
+    const total = adultPrice + childPrice;
+
+    let discountedAmount = total;
+
+    // Apply coupon if exists
+    if (appliedCoupon) {
+      discountedAmount = parseFloat(calculateDiscount(total.toString(), appliedCoupon));
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      total_amount: total.toFixed(2),
+      discounted_amount: discountedAmount.toFixed(2)
+    }));
+  }, [
+    selectedAccommodation,
+    formData.adults,
+    formData.children,
+    formData.rooms,
+    appliedCoupon
+  ]);
+
+  useEffect(() => {
+    if (formData.accommodation_id) {
+      fetchAccommodationDetails(formData.accommodation_id);
+    }
+  }, [formData.accommodation_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  // Required field check
-  if (
-    !formData.guest_name ||
-    !formData.guest_email ||
-    !formData.accommodation_id ||
-    !formData.check_in ||
-    !formData.check_out ||
-    !formData.total_amount
-  ) {
-    alert('Please fill in all required fields');
-    return;
-  }
-
-  const adults = parseInt(formData.adults);
-  const children = parseInt(formData.children);
-  const rooms = parseInt(formData.rooms);
-  const food_veg = parseInt(formData.food_veg);
-  const food_nonveg = parseInt(formData.food_nonveg);
-  const food_jain = parseInt(formData.food_jain);
-  const totalGuests = adults + children;
-  const totalFood = food_veg + food_nonveg + food_jain;
-
-  if (totalFood > 0 && totalFood !== totalGuests) {
-    alert('Food preferences must match total guests count');
-    return;
-  }
-
-  if (new Date(formData.check_in) >= new Date(formData.check_out)) {
-    alert('Check-out must be after check-in');
-    return;
-  }
-
-  if (adults < 1 || rooms < 1) {
-    alert('Must have at least 1 adult and 1 room');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const bookingPayload = {
-      guest_name: formData.guest_name,
-      guest_email: formData.guest_email,
-      guest_phone: formData.guest_phone || null,
-      accommodation_id: parseInt(formData.accommodation_id),
-      check_in: formData.check_in,
-      check_out: formData.check_out,
-      adults,
-      children,
-      rooms,
-      food_veg,
-      food_nonveg,
-      food_jain,
-      total_amount: parseFloat(formData.total_amount),
-      advance_amount: parseFloat(formData.advance_amount || '0'),
-    };
-
-    const response = await fetch(`http://localhost:5000/admin/bookings/offline`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(bookingPayload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create booking');
+    // Required field check
+    if (
+      !formData.guest_name ||
+      !formData.guest_email ||
+      !formData.accommodation_id ||
+      !formData.check_in ||
+      !formData.check_out ||
+      !formData.total_amount
+    ) {
+      alert('Please fill in all required fields');
+      return;
     }
 
-    const result = await response.json();
-   
-          //call in sequence plase
-    downloadPdf(
-  bookingPayload.guest_email,
-  bookingPayload.guest_name,
-  result.data.booking.id.toString(),
-  bookingPayload.check_in,
-  bookingPayload.check_out,
-  bookingPayload.total_amount,
-  bookingPayload.advance_amount,
-  (bookingPayload.total_amount - bookingPayload.advance_amount),
-  bookingPayload.guest_phone || '',
-  bookingPayload.rooms,
-  bookingPayload.adults,
-  bookingPayload.children,
-  bookingPayload.food_veg,
-  bookingPayload.food_nonveg,
-  bookingPayload.food_jain,
-  accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.name || '',
-  accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.address || '',
-  (accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.latitude || '').toString(),
-  (accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.longitude || '').toString()
-);
+    const adults = parseInt(formData.adults);
+    const children = parseInt(formData.children);
+    const rooms = parseInt(formData.rooms);
+    const food_veg = parseInt(formData.food_veg);
+    const food_nonveg = parseInt(formData.food_nonveg);
+    const food_jain = parseInt(formData.food_jain);
+    const totalGuests = adults + children;
+    const totalFood = food_veg + food_nonveg + food_jain;
+    console.log("Total Guests  ",totalGuests," totalFood  ",totalFood);
+     if (totalFood !== totalGuests) {
+     alert('Food preferences must match total guests count');
+     return;
+   }
+    if (totalFood > 0 && (totalFood !== totalGuests)) {
+      alert('Food preferences must match total guests count');
+      return;
+    }
 
-    // setBookingData(result.data.booking);
-    setBookingSuccess(true);
-    navigate('/bookings');
-    
-  } catch (error) {
-    console.error('Error creating booking:', error);
-    alert(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  } finally {
-    setLoading(false);
-  }
-};
+    if (new Date(formData.check_in) >= new Date(formData.check_out)) {
+      alert('Check-out must be after check-in');
+      return;
+    }
 
+    if (adults < 1 || rooms < 1) {
+      alert('Must have at least 1 adult and 1 room');
+      return;
+    }
 
-  const generatePDF = () => {
-    const input = document.getElementById('booking-confirmation');
-    if (!input) return;
+    setLoading(true);
+    try {
+      const bookingPayload = {
+        guest_name: formData.guest_name,
+        guest_email: formData.guest_email,
+        guest_phone: formData.guest_phone || null,
+        accommodation_id: parseInt(formData.accommodation_id),
+        check_in: formData.check_in,
+        check_out: formData.check_out,
+        adults,
+        children,
+        rooms,
+        food_veg,
+        food_nonveg,
+        food_jain,
+        total_amount: parseFloat(formData.discounted_amount || formData.total_amount),
+        advance_amount: parseFloat(formData.advance_amount || '0'),
+      };
 
-    html2canvas(input, {
-      scale: 2,
-      logging: true,
-      useCORS: true
-    }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = canvas.height * imgWidth / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const response = await fetch(`${_BASE_URL}/admin/bookings/offline`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingPayload),
+      });
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create booking');
       }
 
-      pdf.save(`booking_${bookingData.id}.pdf`);
-    });
+      const result = await response.json();
+     
+      setBookingSuccess(true);
+
+      // Download PDF would be called here
+      // downloadPdf(...);
+      downloadPdf(
+        bookingPayload.guest_email,
+        bookingPayload.guest_name,
+        result.data.booking.id.toString(),
+        bookingPayload.check_in,
+        bookingPayload.check_out,
+        bookingPayload.total_amount,
+        bookingPayload.advance_amount,
+        (bookingPayload.total_amount - bookingPayload.advance_amount),
+        bookingPayload.guest_phone || '',
+
+        bookingPayload.rooms,
+        bookingPayload.adults,
+        bookingPayload.children,
+        bookingPayload.food_veg,
+        bookingPayload.food_nonveg,
+        bookingPayload.food_jain,
+        accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.name || '',
+        accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.address || '',
+        (accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.latitude || '').toString(),
+        (accommodations.find(acc => acc.id === bookingPayload.accommodation_id)?.longitude || '').toString()
+      );
+      alert('Booking created successfully!');
+      navigate('/bookings');
+
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      alert(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading && accommodations.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
-  if (bookingSuccess && bookingData) {
-    return (
-      <div className="space-y-6 pb-16 md:pb-0">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Booking Confirmation</h1>
-            <p className="mt-1 text-sm text-gray-500">Booking #{bookingData.id} created successfully</p>
-          </div>
-          <div className="mt-4 sm:mt-0">
-            <button
-              onClick={generatePDF}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Download PDF
-            </button>
-            <button
-              onClick={() => navigate('/bookings')}
-              className="ml-3 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-navy-500"
-            >
-              Back to Bookings
-            </button>
-          </div>
-        </div>
-
-        <div id="booking-confirmation" className="bg-white shadow rounded-lg overflow-hidden p-6">
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-navy-700">Plumeria Retreat</h2>
-            <p className="text-gray-600">Booking Confirmation</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Guest Information</h3>
-              <div className="space-y-1">
-                <p><span className="font-medium">Name:</span> {bookingData.guest_name}</p>
-                <p><span className="font-medium">Email:</span> {bookingData.guest_email}</p>
-                <p><span className="font-medium">Phone:</span> {bookingData.guest_phone || 'N/A'}</p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Booking Details</h3>
-              <div className="space-y-1">
-                <p><span className="font-medium">Booking ID:</span> {bookingData.id}</p>
-                <p><span className="font-medium">Accommodation:</span> {bookingData.accommodation_name}</p>
-                <p><span className="font-medium">Check-in:</span> {new Date(bookingData.check_in).toLocaleDateString()}</p>
-                <p><span className="font-medium">Check-out:</span> {new Date(bookingData.check_out).toLocaleDateString()}</p>
-                <p><span className="font-medium">Guests:</span> {bookingData.adults} Adults, {bookingData.children} Children</p>
-                <p><span className="font-medium">Rooms:</span> {bookingData.rooms}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Food Preferences</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p><span className="font-medium">Veg:</span> {bookingData.food_veg}</p>
-              </div>
-              <div>
-                <p><span className="font-medium">Non-Veg:</span> {bookingData.food_nonveg}</p>
-              </div>
-              <div>
-                <p><span className="font-medium">Jain:</span> {bookingData.food_jain}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Payment Information</h3>
-            <div className="space-y-1">
-              <p><span className="font-medium">Total Amount:</span> ₹{parseFloat(bookingData.total_amount).toFixed(2)}</p>
-              {bookingData.discounted_amount && (
-                <p><span className="font-medium">Discounted Amount:</span> ₹{parseFloat(bookingData.discounted_amount).toFixed(2)}</p>
-              )}
-              <p><span className="font-medium">Advance Paid:</span> ₹{parseFloat(bookingData.advance_amount).toFixed(2)}</p>
-              <p><span className="font-medium">Balance Due:</span> ₹{(parseFloat(bookingData.discounted_amount || bookingData.total_amount) - parseFloat(bookingData.advance_amount)).toFixed(2)}</p>
-              <p><span className="font-medium">Payment Method:</span> {bookingData.payment_method}</p>
-              <p><span className="font-medium">Status:</span> <span className="text-green-600">Confirmed</span></p>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Accommodation Address</h3>
-            <p>{bookingData.accommodation_address}</p>
-          </div>
-        </div>
       </div>
     );
   }
@@ -1041,7 +994,7 @@ const CreateBooking: React.FC = () => {
               <User className="h-5 w-5 text-navy-600 mr-2" />
               <h2 className="text-lg font-medium text-gray-900">Guest Information</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
                 <label htmlFor="guest_name" className="block text-sm font-medium text-gray-700">
@@ -1113,7 +1066,7 @@ const CreateBooking: React.FC = () => {
                   <option value="">Select Accommodation</option>
                   {accommodations.map(acc => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} - ₹{acc.price}/night
+                      {acc.name}
                     </option>
                   ))}
                 </select>
@@ -1300,8 +1253,8 @@ const CreateBooking: React.FC = () => {
                           className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => handleCouponSelect(coupon)}
                         >
-                          {coupon.code} - {coupon.discountType === 'percentage' 
-                            ? `${coupon.discount}% off` 
+                          {coupon.code} - {coupon.discountType === 'percentage'
+                            ? `${coupon.discount}% off`
                             : `₹${coupon.discount} off`}
                         </div>
                       ))}
@@ -1309,23 +1262,6 @@ const CreateBooking: React.FC = () => {
                   )}
                 </div>
               </div>
-
-              {formData.discounted_amount && (
-                <div>
-                  <label htmlFor="discounted_amount" className="block text-sm font-medium text-gray-700">
-                    Discounted Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    id="discounted_amount"
-                    name="discounted_amount"
-                    step="0.01"
-                    value={formData.discounted_amount}
-                    readOnly
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-navy-500 focus:border-navy-500 sm:text-sm bg-gray-100"
-                  />
-                </div>
-              )}
 
               <div>
                 <label htmlFor="advance_amount" className="block text-sm font-medium text-gray-700">
