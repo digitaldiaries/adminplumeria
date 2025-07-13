@@ -968,7 +968,9 @@ const CreateBooking: React.FC = () => {
     container.style.left = '-9999px';
     container.style.width = '675px';
     container.style.background = 'white';
-
+    container.style.margin='0px';
+    container.style.padding='0px';
+    
     document.body.appendChild(container);
 
     html2canvas(container, { scale: 2 }).then((canvas) => {
