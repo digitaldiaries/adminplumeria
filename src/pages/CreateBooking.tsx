@@ -960,46 +960,35 @@ const CreateBooking: React.FC = () => {
 
 </html>`
     const container = document.createElement('div');
-    container.innerHTML = html;
+  container.innerHTML = html;
 
-    // Position off-screen to render
-    container.style.position = 'absolute';
-    container.style.top = '-9999px';
-    container.style.left = '-9999px';
-    container.style.width = '675px';
-    container.style.background = 'white';
-    container.style.margin='0px';
-    container.style.padding='0px';
-    
-    document.body.appendChild(container);
+  container.style.position = 'absolute';
+  container.style.top = '-9999px';
+  container.style.left = '-9999px';
+  container.style.width = '675px'; // Match your screenshot width
+  container.style.background = 'white';
 
-    html2canvas(container, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'pt', 'a4');
+  document.body.appendChild(container);
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+  html2canvas(container, { scale: 2 }).then((canvas) => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'pt', 'a4');
 
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgWidth = imgProps.width;
-      const imgHeight = imgProps.height;
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const imgProps = pdf.getImageProperties(imgData);
 
-      // Scale image to fit single PDF page
-      const scale = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const scaledWidth = imgWidth * scale;
-      const scaledHeight = imgHeight * scale;
+    // Auto-scale height based on full-width
+    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      const x = (pdfWidth - scaledWidth) / 2;
-      const y = 20;
+    // Draw full-width image (no margin)
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    pdf.save(`Booking-${BookingId}.pdf`);
 
-      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
-      pdf.save(`Booking-${BookingId}.pdf`);
-
-      document.body.removeChild(container); // Clean up
-    }).catch((error) => {
-      console.error("Failed to generate PDF:", error);
-      document.body.removeChild(container);
-    });
+    document.body.removeChild(container); // Clean up
+  }).catch((error) => {
+    console.error("Failed to generate PDF:", error);
+    document.body.removeChild(container);
+  });
   }
   useEffect(() => {
     if (formData.accommodation_id) {
