@@ -366,7 +366,7 @@ const CreateBooking: React.FC = () => {
     formData.rooms,
     appliedCoupon
   ]);
-    const downloadPdf = (
+  const downloadPdf = (
     email: string,
     name: string,
     BookingId: string,
@@ -961,26 +961,40 @@ const CreateBooking: React.FC = () => {
 </html>`
     const container = document.createElement('div');
     container.innerHTML = html;
+
+    // Position off-screen to render
     container.style.position = 'absolute';
     container.style.top = '-9999px';
     container.style.left = '-9999px';
-     container.style.width = '675px'; // Match template width
+    container.style.width = '675px';
+    container.style.background = 'white';
+
     document.body.appendChild(container);
 
-    // Step 2: Convert to canvas
-    html2canvas(container, { scale: 2 }).then(canvas => {
+    html2canvas(container, { scale: 2 }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
-
       const pdf = new jsPDF('p', 'pt', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgWidth = imgProps.width;
+      const imgHeight = imgProps.height;
+
+      // Scale image to fit single PDF page
+      const scale = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const scaledWidth = imgWidth * scale;
+      const scaledHeight = imgHeight * scale;
+
+      const x = (pdfWidth - scaledWidth) / 2;
+      const y = 20;
+
+      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
       pdf.save(`Booking-${BookingId}.pdf`);
 
-      document.body.removeChild(container); // Cleanup
-    }).catch(error => {
+      document.body.removeChild(container); // Clean up
+    }).catch((error) => {
       console.error("Failed to generate PDF:", error);
       document.body.removeChild(container);
     });
