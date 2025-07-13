@@ -962,12 +962,12 @@ const CreateBooking: React.FC = () => {
     const container = document.createElement('div');
   container.innerHTML = html;
 
-  // Force exact rendering width
-  const fixedWidth = 595.28; // A4 width in pt for jsPDF
+  // Styling to prevent overflow
   container.style.position = 'absolute';
   container.style.top = '-9999px';
   container.style.left = '-9999px';
-  container.style.width = `${fixedWidth}px`; // Match A4 width
+  container.style.width = 'auto';
+  container.style.maxWidth = '794px'; // A4 width in px at 96 DPI
   container.style.background = 'white';
   container.style.padding = '0';
   container.style.margin = '0';
@@ -975,31 +975,35 @@ const CreateBooking: React.FC = () => {
   document.body.appendChild(container);
 
   html2canvas(container, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true
+    scale: 2, // High quality
+    useCORS: true
   }).then((canvas) => {
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'pt', 'a4');
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
 
-    const imgProps = pdf.getImageProperties(imgData);
-    const imgWidth = imgProps.width;
-    const imgHeight = imgProps.height;
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
 
-    // Scale image to fill PDF width (no margin)
-    const scale = pdfWidth / imgWidth;
-    const scaledHeight = imgHeight * scale;
+    // Calculate scale to fit image within PDF page
+    const widthScale = pageWidth / imgWidth;
+    const heightScale = pageHeight / imgHeight;
+    const scale = Math.min(widthScale, heightScale); // Best fit
 
-    // ⚠️ If height exceeds, it will be cropped – you said one page only
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+    const renderWidth = imgWidth * scale;
+    const renderHeight = imgHeight * scale;
+
+    const x = (pageWidth - renderWidth) / 2; // Center horizontally
+    const y = (pageHeight - renderHeight) / 2; // Center vertically
+
+    pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
     pdf.save(`Booking-${BookingId}.pdf`);
 
     document.body.removeChild(container);
   }).catch((error) => {
-    console.error("Failed to generate PDF:", error);
+    console.error("PDF generation failed:", error);
     document.body.removeChild(container);
   });
   }
