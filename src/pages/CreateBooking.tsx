@@ -962,10 +962,11 @@ const CreateBooking: React.FC = () => {
     const container = document.createElement('div');
   container.innerHTML = html;
 
+  // Match the width of your design
   container.style.position = 'absolute';
   container.style.top = '-9999px';
   container.style.left = '-9999px';
-  container.style.width = '675px'; // Match your screenshot width
+  container.style.width = '675px'; // Your original design width
   container.style.background = 'white';
 
   document.body.appendChild(container);
@@ -975,16 +976,28 @@ const CreateBooking: React.FC = () => {
     const pdf = new jsPDF('p', 'pt', 'a4');
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
     const imgProps = pdf.getImageProperties(imgData);
+    const imgWidth = imgProps.width;
+    const imgHeight = imgProps.height;
 
-    // Auto-scale height based on full-width
-    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    // 🔑 Scale to fit both width and height
+    const widthScale = pdfWidth / imgWidth;
+    const heightScale = pdfHeight / imgHeight;
+    const scale = Math.min(widthScale, heightScale); // Fit both
 
-    // Draw full-width image (no margin)
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+    const scaledWidth = imgWidth * scale;
+    const scaledHeight = imgHeight * scale;
+
+    // No left-right margin (start at 0)
+    const x = 0;
+    const y = 0;
+
+    pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
     pdf.save(`Booking-${BookingId}.pdf`);
 
-    document.body.removeChild(container); // Clean up
+    document.body.removeChild(container);
   }).catch((error) => {
     console.error("Failed to generate PDF:", error);
     document.body.removeChild(container);
