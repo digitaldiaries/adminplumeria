@@ -965,9 +965,6 @@ const CreateBooking: React.FC = () => {
     container.style.top = '-9999px';
     container.style.left = '-9999px';
      container.style.width = '675px'; // Match template width
-    container.style.margin = '0';
-    container.style.padding = '0';
-    container.style.boxSizing = 'border-box';
     document.body.appendChild(container);
 
     // Step 2: Convert to canvas
