@@ -133,7 +133,6 @@ const AccommodationForm: React.FC = () => {
       
       // NEW: Store existing images separately
       setExistingImages(data.basicInfo.images || []);
-      
       setFormData({
         id: data.id,
         name: data.basicInfo.name || '',

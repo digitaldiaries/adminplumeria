@@ -49,6 +49,7 @@ interface Booking {
   rooms: number;
   amount: string;
   paidAmount: string;
+  remainingAmount: string; // Added remaining amount
   paymentStatus: 'Paid' | 'Partial' | 'Unpaid' | 'Pending';
   bookingStatus: 'Confirmed' | 'Pending' | 'Cancelled';
   paymentTxnId: string | null;
@@ -113,6 +114,10 @@ const Bookings: React.FC = () => {
     }
 
     const bookingStatus = 'Confirmed';
+    
+    const totalAmount = parseFloat(apiBooking.total_amount);
+    const paidAmount = parseFloat(apiBooking.advance_amount);
+    const remainingAmount = totalAmount - paidAmount;
 
     return {
       id: apiBooking.id,
@@ -127,8 +132,9 @@ const Bookings: React.FC = () => {
       adults: apiBooking.adults,
       children: apiBooking.children,
       rooms: apiBooking.rooms,
-      amount: `₹${parseFloat(apiBooking.total_amount).toLocaleString('en-IN')}`,
-      paidAmount: `₹${parseFloat(apiBooking.advance_amount).toLocaleString('en-IN')}`,
+      amount: `₹${totalAmount.toLocaleString('en-IN')}`,
+      paidAmount: `₹${paidAmount.toLocaleString('en-IN')}`,
+      remainingAmount: `₹${remainingAmount.toLocaleString('en-IN')}`, // Added remaining amount
       paymentStatus,
       bookingStatus,
       paymentTxnId: apiBooking.payment_txn_id,
@@ -433,114 +439,128 @@ const Bookings: React.FC = () => {
           {/* Bookings Table */}
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Booking ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Guest
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                      Accommodation
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                      Check In
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                      Check Out
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Payment
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {bookings.map((booking) => (
-                    <tr key={booking.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-blue-600">
-                        <button 
-                          onClick={() => handleOpenDetails(booking.id)} 
-                          className="hover:underline"
-                        >
-                          {booking.bookingId}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="flex flex-col">
-                          <span>{booking.guest}</span>
-                          <span className="text-xs text-gray-500">{booking.email}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 hidden md:table-cell">
-                        {booking.accommodation}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 hidden sm:table-cell">
-                        {booking.checkIn}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {booking.checkOut}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        <div className="flex flex-col">
-                          <span>{booking.amount}</span>
-                          <span className="text-xs text-gray-500">Paid: {booking.paidAmount}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            booking.paymentStatus === 'Paid'
-                              ? 'bg-green-100 text-green-800'
-                              : booking.paymentStatus === 'Partial'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : booking.paymentStatus === 'Pending'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {booking.paymentStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            booking.bookingStatus === 'Confirmed'
-                              ? 'bg-green-100 text-green-800'
-                              : booking.bookingStatus === 'Pending'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {booking.bookingStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleOpenPaymentModal(booking.id)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Add Payment"
-                          >
-                            <span className="sr-only">Add Payment</span>
-                            <DollarSign className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </td>
+              <div className="min-w-full inline-block align-middle">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Booking ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Guest
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                        Accommodation
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                        Check In
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                        Check Out
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Paid
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Remaining
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bookings.map((booking) => (
+                      <tr key={booking.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-blue-600">
+                          <button 
+                            className=""
+                          >
+                            {booking.bookingId}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span>{booking.guest}</span>
+                            <span className="text-xs text-gray-500">{booking.email}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 hidden md:table-cell">
+                          {booking.accommodation}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 hidden sm:table-cell">
+                          {booking.checkIn}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                          {booking.checkOut}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {booking.amount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {booking.paidAmount}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium">
+                          <span className={booking.paymentStatus === 'Paid' ? 'text-green-600' : 
+                                           booking.paymentStatus === 'Partial' ? 'text-yellow-600' : 
+                                           'text-red-600'}>
+                            {booking.remainingAmount}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              booking.paymentStatus === 'Paid'
+                                ? 'bg-green-100 text-green-800'
+                                : booking.paymentStatus === 'Partial'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : booking.paymentStatus === 'Pending'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {booking.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              booking.bookingStatus === 'Confirmed'
+                                ? 'bg-green-100 text-green-800'
+                                : booking.bookingStatus === 'Pending'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {booking.bookingStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleOpenPaymentModal(booking.id)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Add Payment"
+                            >
+                              <span className="sr-only">Add Payment</span>
+                              <DollarSign className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
