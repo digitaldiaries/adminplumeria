@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Building2, User, CreditCard, UtensilsCrossed } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+
 interface Accommodation {
   id: number;
   name: string;
@@ -81,7 +82,291 @@ const CreateBooking: React.FC = () => {
     { id: 'phonepe', name: 'PhonePe' },
     { id: 'paytm', name: 'Paytm' }
   ];
-  const downloadPdf = (
+
+  useEffect(() => {
+    const fetchAccommodations = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${_BASE_URL}/admin/properties/accommodations`);
+        const data = await response.json();
+
+        const accommodationsData = data.data || [];
+        if (Array.isArray(accommodationsData)) {
+          setAccommodations(accommodationsData);
+        } else {
+          console.error('Unexpected accommodations data format:', data);
+          setAccommodations([]);
+        }
+      } catch (error) {
+        console.error('Error fetching accommodations:', error);
+        alert('Failed to load accommodations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAccommodations();
+  }, []);
+
+  useEffect(() => {
+    const fetchBlockedDates = async () => {
+      try {
+        const response = await fetch(`${_BASE_URL}/admin/calendar/blocked-dates`);
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setBlockedDates(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching blocked dates:', error);
+      }
+    };
+
+    fetchBlockedDates();
+  }, []);
+
+  useEffect(() => {
+    const fetchApplicableCoupons = async () => {
+      if (!selectedAccommodation) {
+        setAllApplicableCoupons([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${_BASE_URL}/admin/coupons`);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          const filteredCoupons = data.data.filter((coupon: Coupon) => {
+            if (!coupon.active) return false;
+            if (coupon.accommodationType === "All") return true;
+            if (!coupon.accommodationType) return true;
+            return coupon.accommodationType === selectedAccommodation.name;
+          });
+
+          setAllApplicableCoupons(filteredCoupons);
+        } else {
+          setAllApplicableCoupons([]);
+        }
+      } catch (error) {
+        console.error('Error fetching coupons:', error);
+        setAllApplicableCoupons([]);
+      }
+    };
+
+    fetchApplicableCoupons();
+  }, [selectedAccommodation]);
+
+  useEffect(() => {
+    if (formData.coupon_code) {
+      const searchTerm = formData.coupon_code.toLowerCase();
+      const filtered = allApplicableCoupons.filter(coupon =>
+        coupon.code.toLowerCase().includes(searchTerm)
+      );
+      setAvailableCoupons(filtered);
+    } else {
+      setAvailableCoupons(allApplicableCoupons);
+    }
+  }, [formData.coupon_code, allApplicableCoupons]);
+
+  const fetchAccommodationDetails = async (id: string) => {
+    try {
+      const response = await fetch(`${_BASE_URL}/admin/properties/accommodations/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch accommodation details');
+      }
+      const data = await response.json();
+      const accommodation: Accommodation = {
+        id: data.id,
+        name: data.basicInfo?.name || 'Unnamed Accommodation',
+        description: data.basicInfo?.description || '',
+        price: data.basicInfo?.price || 0,
+        available_rooms: data.basicInfo?.rooms || 0,
+        amenities: data.amenities || '',
+        address: data.location?.address || '',
+        latitude: data.location?.coordinates?.latitude || 0,
+        longitude: data.location?.coordinates?.longitude || 0,
+        adultPrice: data.packages?.pricing?.adult || 0,
+        childPrice: data.packages?.pricing?.child || 0,
+        capacity: data.basicInfo?.capacity || 4
+      };
+      setSelectedAccommodation(accommodation);
+      setAvailableRooms(0);
+      setShowRoomAvailability(false);
+      setAppliedCoupon(null);
+      setFormData(prev => ({ ...prev, coupon_code: '' }));
+    } catch (error) {
+      console.error('Error fetching accommodation details:', error);
+    }
+  }
+
+  const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
+    try {
+      const response = await fetch(`${_BASE_URL}/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch booked rooms');
+      }
+      const data = await response.json();
+      return data.total_rooms || 0;
+    } catch (error) {
+      console.error('Error fetching booked rooms:', error);
+      return 0;
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    if (name === 'coupon_code') {
+      setAppliedCoupon(null);
+    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCouponSelect = (coupon: Coupon) => {
+    setAppliedCoupon(coupon);
+    setFormData(prev => ({
+      ...prev,
+      coupon_code: coupon.code
+    }));
+    setAvailableCoupons([]);
+  };
+
+  useEffect(() => {
+    if (formData.check_in) {
+      const nextDay = new Date(formData.check_in);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayString = nextDay.toISOString().split('T')[0];
+
+      if (!formData.check_out || new Date(formData.check_out) <= new Date(formData.check_in)) {
+        setFormData(prev => ({ ...prev, check_out: nextDayString }));
+      }
+
+      validateDates(formData.check_in, nextDayString);
+    }
+  }, [formData.check_in]);
+
+  useEffect(() => {
+    const calculateAvailableRooms = async () => {
+      if (!formData.accommodation_id || !formData.check_in || !selectedAccommodation) {
+        setAvailableRooms(0);
+        return;
+      }
+
+      const accommodationId = parseInt(formData.accommodation_id);
+      const booked = await fetchBookedRooms(accommodationId, formData.check_in);
+
+      setBookedRooms(booked);
+
+      const blockedForDate = blockedDates.find(
+        b => b.accommodation_id === accommodationId && b.blocked_date === formData.check_in
+      );
+      const blockedRooms = blockedForDate ? blockedForDate.rooms_blocked : 0;
+      setBlockedRoomsCount(blockedRooms);
+
+      const totalRooms = selectedAccommodation.available_rooms || 0;
+      const bookedCount = booked || 0;
+      const blockedCount = blockedRooms || 0;
+
+      const available = totalRooms - bookedCount - blockedCount;
+      const availableRoomsValue = Math.max(available, 0);
+      setAvailableRooms(availableRoomsValue);
+      setShowRoomAvailability(true);
+
+      if (parseInt(formData.rooms) > availableRoomsValue) {
+        setFormData(prev => ({
+          ...prev,
+          rooms: availableRoomsValue > 0 ? availableRoomsValue.toString() : '0'
+        }));
+      }
+    };
+
+    calculateAvailableRooms();
+  }, [formData.accommodation_id, formData.check_in, blockedDates, selectedAccommodation]);
+
+  const validateDates = (checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) return;
+
+    const startDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
+    const accommodationId = parseInt(formData.accommodation_id);
+
+    if (!accommodationId) return;
+
+    const accommodationBlockedDates = blockedDates.filter(
+      date => date.accommodation_id === accommodationId
+    );
+
+    let errorDate: string | null = null;
+    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+      const dateString = d.toISOString().split('T')[0];
+
+      const isBlocked = accommodationBlockedDates.some(
+        blocked => blocked.blocked_date === dateString
+      );
+
+      if (isBlocked) {
+        errorDate = dateString;
+        break;
+      }
+    }
+
+    setDateError(errorDate ? `The date ${errorDate} is blocked for this accommodation` : null);
+  };
+
+  const calculateDiscount = (totalAmount: number, coupon: Coupon | null): number => {
+    if (!coupon) return totalAmount;
+
+    const discount = parseFloat(coupon.discount);
+    const minAmount = coupon.minAmount ? parseFloat(coupon.minAmount) : 0;
+    const maxDiscount = coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : Infinity;
+
+    if (totalAmount < minAmount) {
+      return totalAmount;
+    }
+
+    let discountedAmount = totalAmount;
+
+    if (coupon.discountType === 'percentage') {
+      const discountValue = totalAmount * (discount / 100);
+      const finalDiscount = Math.min(discountValue, maxDiscount);
+      discountedAmount = totalAmount - finalDiscount;
+    } else {
+      discountedAmount = totalAmount - discount;
+    }
+
+    return Math.max(0, discountedAmount);
+  };
+
+  useEffect(() => {
+    if (!selectedAccommodation) {
+      setFormData(prev => ({
+        ...prev,
+        total_amount: '',
+        discounted_amount: ''
+      }));
+      return;
+    }
+
+    const adults = parseInt(formData.adults) || 0;
+    const children = parseInt(formData.children) || 0;
+    const adultPrice = (selectedAccommodation.adultPrice || 0) * adults;
+    const childPrice = (selectedAccommodation.childPrice || 0) * children;
+    const baseTotal = adultPrice + childPrice;
+
+    const discountedTotal = calculateDiscount(baseTotal, appliedCoupon);
+
+    setFormData(prev => ({
+      ...prev,
+      total_amount: baseTotal.toFixed(2),
+      discounted_amount: discountedTotal.toFixed(2)
+    }));
+  }, [
+    selectedAccommodation,
+    formData.adults,
+    formData.children,
+    formData.rooms,
+    appliedCoupon
+  ]);
+    const downloadPdf = (
     email: string,
     name: string,
     BookingId: string,
@@ -679,345 +964,30 @@ const CreateBooking: React.FC = () => {
     container.style.position = 'absolute';
     container.style.top = '-9999px';
     container.style.left = '-9999px';
-    container.style.width = '675px'; // Match template width
+     container.style.width = '675px'; // Match template width
     container.style.margin = '0';
     container.style.padding = '0';
     container.style.boxSizing = 'border-box';
     document.body.appendChild(container);
 
-    html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: null,
-        ignoreElements: element => element.tagName === 'IFRAME'
-    }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'pt', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        let position = 0;
-        let page = 0;
+    // Step 2: Convert to canvas
+    html2canvas(container, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
 
-        while (position < pdfHeight) {
-            if (page > 0) pdf.addPage();
-            pdf.addImage(
-                imgData, 
-                'PNG', 
-                0, 
-                -position, 
-                pdfWidth, 
-                canvas.height * pdfWidth / canvas.width
-            );
-            position += pdf.internal.pageSize.getHeight();
-            page++;
-        }
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        pdf.save(`Booking-${BookingId}.pdf`);
-        document.body.removeChild(container);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Booking-${BookingId}.pdf`);
+
+      document.body.removeChild(container); // Cleanup
     }).catch(error => {
-        console.error("PDF generation failed:", error);
-        document.body.removeChild(container);
+      console.error("Failed to generate PDF:", error);
+      document.body.removeChild(container);
     });
   }
-
-  useEffect(() => {
-    const fetchAccommodations = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`${_BASE_URL}/admin/properties/accommodations`);
-        const data = await response.json();
-
-        const accommodationsData = data.data || [];
-        if (Array.isArray(accommodationsData)) {
-          setAccommodations(accommodationsData);
-        } else {
-          console.error('Unexpected accommodations data format:', data);
-          setAccommodations([]);
-        }
-      } catch (error) {
-        console.error('Error fetching accommodations:', error);
-        alert('Failed to load accommodations');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAccommodations();
-  }, []);
-
-  useEffect(() => {
-    const fetchBlockedDates = async () => {
-      try {
-        const response = await fetch(`${_BASE_URL}/admin/calendar/blocked-dates`);
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          setBlockedDates(data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching blocked dates:', error);
-      }
-    };
-
-    fetchBlockedDates();
-  }, []);
-
-  // Fetch applicable coupons when accommodation changes
-  useEffect(() => {
-    const fetchApplicableCoupons = async () => {
-      if (!selectedAccommodation) {
-        setAllApplicableCoupons([]);
-        return;
-      }
-
-      try {
-        const response = await fetch(`${_BASE_URL}/admin/coupons`);
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          const filteredCoupons = data.data.filter((coupon: Coupon) => {
-            if (!coupon.active) return false;
-
-            // Include coupon if it's for "All" accommodations
-            if (coupon.accommodationType === "All") return true;
-
-            // Include if coupon doesn't specify accommodation type
-            if (!coupon.accommodationType) return true;
-
-            // Include if coupon matches selected accommodation
-            return coupon.accommodationType === selectedAccommodation.name;
-          });
-
-          setAllApplicableCoupons(filteredCoupons);
-        } else {
-          setAllApplicableCoupons([]);
-        }
-      } catch (error) {
-        console.error('Error fetching coupons:', error);
-        setAllApplicableCoupons([]);
-      }
-    };
-
-    fetchApplicableCoupons();
-  }, [selectedAccommodation]);
-
-  // Filter coupons based on input text
-  useEffect(() => {
-    if (formData.coupon_code) {
-      const searchTerm = formData.coupon_code.toLowerCase();
-      const filtered = allApplicableCoupons.filter(coupon =>
-        coupon.code.toLowerCase().includes(searchTerm)
-      );
-      setAvailableCoupons(filtered);
-    } else {
-      setAvailableCoupons(allApplicableCoupons);
-    }
-  }, [formData.coupon_code, allApplicableCoupons]);
-
-  const fetchAccommodationDetails = async (id: string) => {
-    try {
-      const response = await fetch(`${_BASE_URL}/admin/properties/accommodations/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch accommodation details');
-      }
-      const data = await response.json();
-      const accommodation: Accommodation = {
-        id: data.id,
-        name: data.basicInfo?.name || 'Unnamed Accommodation',
-        description: data.basicInfo?.description || '',
-        price: data.basicInfo?.price || 0,
-        available_rooms: data.basicInfo?.rooms || 0,
-        amenities: data.amenities || '',
-        address: data.location?.address || '',
-        latitude: data.location?.coordinates?.latitude || 0,
-        longitude: data.location?.coordinates?.longitude || 0,
-        adultPrice: data.packages?.pricing?.adult || 0,
-        childPrice: data.packages?.pricing?.child || 0,
-        capacity: data.basicInfo?.capacity || 4
-      };
-      setSelectedAccommodation(accommodation);
-      setAvailableRooms(0);
-      setShowRoomAvailability(false);
-
-      // Clear coupon when accommodation changes
-      setAppliedCoupon(null);
-      setFormData(prev => ({ ...prev, coupon_code: '' }));
-    } catch (error) {
-      console.error('Error fetching accommodation details:', error);
-    }
-  }
-
-  const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
-    try {
-      const response = await fetch(`${_BASE_URL}/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch booked rooms');
-      }
-      const data = await response.json();
-      return data.total_rooms || 0;
-    } catch (error) {
-      console.error('Error fetching booked rooms:', error);
-      return 0;
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    if (name === 'coupon_code') {
-      setAppliedCoupon(null);
-    }
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCouponSelect = (coupon: Coupon) => {
-    setAppliedCoupon(coupon);
-    setFormData(prev => ({
-      ...prev,
-      coupon_code: coupon.code
-    }));
-    setAvailableCoupons([]);
-  };
-
-  useEffect(() => {
-    if (formData.check_in) {
-      const nextDay = new Date(formData.check_in);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const nextDayString = nextDay.toISOString().split('T')[0];
-
-      if (!formData.check_out || new Date(formData.check_out) <= new Date(formData.check_in)) {
-        setFormData(prev => ({ ...prev, check_out: nextDayString }));
-      }
-
-      validateDates(formData.check_in, nextDayString);
-    }
-  }, [formData.check_in]);
-
-  useEffect(() => {
-    const calculateAvailableRooms = async () => {
-      if (!formData.accommodation_id || !formData.check_in || !selectedAccommodation) {
-        setAvailableRooms(0);
-        return;
-      }
-
-      const accommodationId = parseInt(formData.accommodation_id);
-      const booked = await fetchBookedRooms(accommodationId, formData.check_in);
-
-      setBookedRooms(booked);
-
-      const blockedForDate = blockedDates.find(
-        b => b.accommodation_id === accommodationId && b.blocked_date === formData.check_in
-      );
-      const blockedRooms = blockedForDate ? blockedForDate.rooms_blocked : 0;
-      setBlockedRoomsCount(blockedRooms);
-
-      const totalRooms = selectedAccommodation.available_rooms || 0;
-      const bookedCount = booked || 0;
-      const blockedCount = blockedRooms || 0;
-
-      const available = totalRooms - bookedCount - blockedCount;
-      const availableRoomsValue = Math.max(available, 0);
-      setAvailableRooms(availableRoomsValue);
-      setShowRoomAvailability(true);
-
-      if (parseInt(formData.rooms) > availableRoomsValue) {
-        setFormData(prev => ({
-          ...prev,
-          rooms: availableRoomsValue > 0 ? availableRoomsValue.toString() : '0'
-        }));
-      }
-    };
-
-    calculateAvailableRooms();
-  }, [formData.accommodation_id, formData.check_in, blockedDates, selectedAccommodation]);
-
-  const validateDates = (checkIn: string, checkOut: string) => {
-    if (!checkIn || !checkOut) return;
-
-    const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    const accommodationId = parseInt(formData.accommodation_id);
-
-    if (!accommodationId) return;
-
-    const accommodationBlockedDates = blockedDates.filter(
-      date => date.accommodation_id === accommodationId
-    );
-
-    let errorDate: string | null = null;
-    for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
-      const dateString = d.toISOString().split('T')[0];
-
-      const isBlocked = accommodationBlockedDates.some(
-        blocked => blocked.blocked_date === dateString
-      );
-
-      if (isBlocked) {
-        errorDate = dateString;
-        break;
-      }
-    }
-
-    setDateError(errorDate ? `The date ${errorDate} is blocked for this accommodation` : null);
-  };
-
-  const calculateDiscount = (totalAmount: number, coupon: Coupon | null): number => {
-    if (!coupon) return totalAmount;
-
-    const discount = parseFloat(coupon.discount);
-    const minAmount = coupon.minAmount ? parseFloat(coupon.minAmount) : 0;
-    const maxDiscount = coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : Infinity;
-
-    if (totalAmount < minAmount) {
-      return totalAmount;
-    }
-
-    let discountedAmount = totalAmount;
-
-    if (coupon.discountType === 'percentage') {
-      const discountValue = totalAmount * (discount / 100);
-      const finalDiscount = Math.min(discountValue, maxDiscount);
-      discountedAmount = totalAmount - finalDiscount;
-    } else {
-      discountedAmount = totalAmount - discount;
-    }
-
-    return Math.max(0, discountedAmount);
-  };
-
-  // FIXED: This is the critical useEffect that handles price calculations
-  useEffect(() => {
-    if (!selectedAccommodation) {
-      setFormData(prev => ({
-        ...prev,
-        total_amount: '',
-        discounted_amount: ''
-      }));
-      return;
-    }
-
-    const adults = parseInt(formData.adults) || 0;
-    const children = parseInt(formData.children) || 0;
-    const adultPrice = (selectedAccommodation.adultPrice || 0) * adults;
-    const childPrice = (selectedAccommodation.childPrice || 0) * children;
-    const baseTotal = adultPrice + childPrice;
-
-    // FIXED: Calculate discount from base total
-    const discountedTotal = calculateDiscount(baseTotal, appliedCoupon);
-
-    setFormData(prev => ({
-      ...prev,
-      total_amount: baseTotal.toFixed(2),
-      discounted_amount: discountedTotal.toFixed(2)
-    }));
-  }, [
-    selectedAccommodation,
-    formData.adults,
-    formData.children,
-    formData.rooms,
-    appliedCoupon  // FIXED: Added dependency to trigger on coupon change
-  ]);
-
   useEffect(() => {
     if (formData.accommodation_id) {
       fetchAccommodationDetails(formData.accommodation_id);
@@ -1156,8 +1126,8 @@ const CreateBooking: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 pb-16 md:pb-0">
-      <div className="sm:flex sm:items-center sm:justify-between">
+    <div className="space-y-6 pb-16 md:pb-0 w-full max-w-full overflow-x-auto">
+      <div className="sm:flex sm:items-center sm:justify-between min-w-max">
         <div>
           <div className="flex items-center">
             <button
@@ -1172,15 +1142,15 @@ const CreateBooking: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+      <form onSubmit={handleSubmit} className="space-y-8 min-w-max">
+        <div className="bg-white shadow rounded-lg overflow-hidden min-w-max">
           <div className="p-6 space-y-6">
             <div className="flex items-center mb-4">
               <User className="h-5 w-5 text-navy-600 mr-2" />
               <h2 className="text-lg font-medium text-gray-900">Guest Information</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 min-w-max">
               <div>
                 <label htmlFor="guest_name" className="block text-sm font-medium text-gray-700">
                   Guest Name *
@@ -1228,14 +1198,14 @@ const CreateBooking: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg overflow-hidden min-w-max">
           <div className="p-6 space-y-6">
             <div className="flex items-center mb-4">
               <Building2 className="h-5 w-5 text-navy-600 mr-2" />
               <h2 className="text-lg font-medium text-gray-900">Booking Details</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 min-w-max">
               <div>
                 <label htmlFor="accommodation_id" className="block text-sm font-medium text-gray-700">
                   Accommodation *
@@ -1375,14 +1345,14 @@ const CreateBooking: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg overflow-hidden min-w-max">
           <div className="p-6 space-y-6">
             <div className="flex items-center mb-4">
               <UtensilsCrossed className="h-5 w-5 text-navy-600 mr-2" />
               <h2 className="text-lg font-medium text-gray-900">Food Preference</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 min-w-max">
               <div>
                 <label htmlFor="food_veg" className="block text-sm font-medium text-gray-700">
                   Veg Count
@@ -1445,14 +1415,14 @@ const CreateBooking: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg overflow-hidden min-w-max">
           <div className="p-6 space-y-6">
             <div className="flex items-center mb-4">
               <CreditCard className="h-5 w-5 text-navy-600 mr-2" />
               <h2 className="text-lg font-medium text-gray-900">Payment Information</h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 min-w-max">
               <div>
                 <label htmlFor="final_amount" className="block text-sm font-medium text-gray-700">
                   Total Amount (₹) *
@@ -1483,7 +1453,7 @@ const CreateBooking: React.FC = () => {
                     placeholder="Enter coupon code"
                   />
                   {availableCoupons.length > 0 && !appliedCoupon && (
-                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto min-w-[300px]">
                       {availableCoupons.map(coupon => (
                         <div
                           key={coupon.id}
@@ -1560,7 +1530,7 @@ const CreateBooking: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3">
+        <div className="flex justify-end space-x-3 min-w-max">
           <button
             type="button"
             onClick={() => navigate('/bookings')}
