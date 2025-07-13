@@ -962,12 +962,10 @@ const CreateBooking: React.FC = () => {
     const container = document.createElement('div');
   container.innerHTML = html;
 
-  // Styling to prevent overflow
   container.style.position = 'absolute';
   container.style.top = '-9999px';
   container.style.left = '-9999px';
-  container.style.width = 'auto';
-  container.style.maxWidth = '794px'; // A4 width in px at 96 DPI
+  container.style.width = '794px'; // A4 width in pixels at 96 DPI
   container.style.background = 'white';
   container.style.padding = '0';
   container.style.margin = '0';
@@ -975,30 +973,20 @@ const CreateBooking: React.FC = () => {
   document.body.appendChild(container);
 
   html2canvas(container, {
-    scale: 2, // High quality
+    scale: 2,
     useCORS: true
   }).then((canvas) => {
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'pt', 'a4');
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
+    // Use image size to create a custom-height PDF
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
 
-    // Calculate scale to fit image within PDF page
-    const widthScale = pageWidth / imgWidth;
-    const heightScale = pageHeight / imgHeight;
-    const scale = Math.min(widthScale, heightScale); // Best fit
+    const pdfWidth = 595.28; // A4 width in pt
+    const pdfHeight = (imgHeight * pdfWidth) / imgWidth; // dynamic height
 
-    const renderWidth = imgWidth * scale;
-    const renderHeight = imgHeight * scale;
-
-    const x = (pageWidth - renderWidth) / 2; // Center horizontally
-    const y = (pageHeight - renderHeight) / 2; // Center vertically
-
-    pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
+    const pdf = new jsPDF('p', 'pt', [pdfWidth, pdfHeight]);
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     pdf.save(`Booking-${BookingId}.pdf`);
 
     document.body.removeChild(container);
