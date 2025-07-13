@@ -962,16 +962,23 @@ const CreateBooking: React.FC = () => {
     const container = document.createElement('div');
   container.innerHTML = html;
 
-  // Match the width of your design
+  // Force exact rendering width
+  const fixedWidth = 595.28; // A4 width in pt for jsPDF
   container.style.position = 'absolute';
   container.style.top = '-9999px';
   container.style.left = '-9999px';
-  container.style.width = '675px'; // Your original design width
+  container.style.width = `${fixedWidth}px`; // Match A4 width
   container.style.background = 'white';
+  container.style.padding = '0';
+  container.style.margin = '0';
 
   document.body.appendChild(container);
 
-  html2canvas(container, { scale: 2 }).then((canvas) => {
+  html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true
+  }).then((canvas) => {
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'pt', 'a4');
 
@@ -982,19 +989,12 @@ const CreateBooking: React.FC = () => {
     const imgWidth = imgProps.width;
     const imgHeight = imgProps.height;
 
-    // 🔑 Scale to fit both width and height
-    const widthScale = pdfWidth / imgWidth;
-    const heightScale = pdfHeight / imgHeight;
-    const scale = Math.min(widthScale, heightScale); // Fit both
-
-    const scaledWidth = imgWidth * scale;
+    // Scale image to fill PDF width (no margin)
+    const scale = pdfWidth / imgWidth;
     const scaledHeight = imgHeight * scale;
 
-    // No left-right margin (start at 0)
-    const x = 0;
-    const y = 0;
-
-    pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+    // ⚠️ If height exceeds, it will be cropped – you said one page only
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
     pdf.save(`Booking-${BookingId}.pdf`);
 
     document.body.removeChild(container);
