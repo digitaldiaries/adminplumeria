@@ -797,7 +797,7 @@ const Calendar = () => {
             )}
           </div>
 
-          {/* Blocked Dates List */}
+          {/* Blocked Dates List
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {selectedAccommodationId
@@ -878,7 +878,7 @@ const Calendar = () => {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
       <p className="text-xs text-gray-500 mb-2">
