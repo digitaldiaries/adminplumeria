@@ -102,20 +102,23 @@ const Calendar = () => {
       setError('Failed to load accommodations');
     }
   };
-
-  const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
-    try {
-      const response = await fetch(`${admin_BASE_URL}/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch booked rooms');
-      }
-      const data = await response.json();
-      return data.total_rooms || 0;
-    } catch (error) {
-      console.error('Error fetching booked rooms:', error);
-      return 0;
+const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
+  try {
+    const response = await fetch(
+      `${admin_BASE_URL}/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch booked rooms');
     }
-  };
+    
+    const data = await response.json();
+    return data.total_rooms || 0;  // Ensure we get a number
+  } catch (error) {
+    console.error('Error fetching booked rooms:', error);
+    return 0;
+  }
+};
 
   useEffect(() => {
     fetchBlockedDates();
@@ -144,21 +147,36 @@ const Calendar = () => {
     };
   };
 
-  const calculateAvailableRooms = async (accommodationId: number, dateStr: string) => {
-    const accommodation = accommodations.find(a => a.id === accommodationId);
-    if (!accommodation) return null;
+  // ... existing code ...
 
-    const totalRooms = accommodation.rooms;
+const calculateAvailableRooms = async (accommodationId: number, dateStr: string) => {
+  const accommodation = accommodations.find(a => a.id === accommodationId);
+  if (!accommodation) return null;
 
-    // Find blocked rooms for this accommodation and date
-    const blockedForDate = blockedDates.filter(
-      b => b.accommodation_id === accommodationId && b.blocked_date === dateStr
-    );
+  const totalRooms = accommodation.rooms;
 
-    // If any block has rooms=null, it means all rooms are blocked
-    if (blockedForDate.some(b => b.rooms === null)) {
-      return 0;
-    }
+  // Find blocked rooms for this accommodation and date
+  const blockedForDate = blockedDates.filter(
+    b => b.accommodation_id === accommodationId && b.blocked_date === dateStr
+  );
+
+  // If any block has rooms=null, it means all rooms are blocked
+  if (blockedForDate.some(b => b.rooms === null)) {
+    return 0;
+  }
+
+  // Sum all blocked rooms for this date
+  const blockedRooms = blockedForDate.reduce((sum, b) => sum + (b.rooms || 0), 0);
+
+  // Fetch booked rooms for this specific date and accommodation
+  const bookedRooms = await fetchBookedRooms(accommodationId, dateStr);
+
+  // Calculate available rooms
+  const available = totalRooms - blockedRooms - bookedRooms;
+  return available > 0 ? available : 0;
+};
+
+// ... existing code ...
 
     const blockedRooms = blockedForDate.reduce((sum, b) => sum + (b.rooms || 0), 0);
 
