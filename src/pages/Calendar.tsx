@@ -29,6 +29,7 @@ interface BlockedDate {
   rooms?: number | null;
   adult_price?: number | null;
   child_price?: number | null;
+  updated_at:string;
 }
 
 interface ApiResponse {
@@ -45,7 +46,7 @@ interface BookedRoomData {
 
 const Calendar = () => {
   // State
-  const [selectedDays, setSelectedDays] = useState<Date[]>([]);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [reason, setReason] = useState('');
@@ -60,8 +61,11 @@ const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [adultPrice, setAdultPrice] = useState<number | ''>('');
   const [childPrice, setChildPrice] = useState<number | ''>('');
+  const [availableRoomsForRoomSection,setAvailableRoomsForRoomSection]=useState(0);
   const [availableRooms, setAvailableRooms] = useState<number | null>(null);
   const [isFetchingBookedRooms, setIsFetchingBookedRooms] = useState(false);
+  const [roomStatus, setRoomStatus] = useState<{ [key: number]: 'available' | 'blocked' }>({});
+  const [isProcessingDayClick, setIsProcessingDayClick] = useState(false);
 
   // Fetch data
   const fetchBlockedDates = async () => {
@@ -102,23 +106,23 @@ const Calendar = () => {
       setError('Failed to load accommodations');
     }
   };
-const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
-  try {
-    const response = await fetch(
-      `${admin_BASE_URL}/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`
-    );
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch booked rooms');
+
+  const fetchBookedRooms = async (accommodationId: number, checkInDate: string) => {
+    try {
+      setIsFetchingBookedRooms(true);
+      const response = await fetch(`https://a.plumeriaretreat.com/admin/bookings/room-occupancy?check_in=${checkInDate}&id=${accommodationId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch booked rooms');
+      }
+      const data = await response.json();
+      return data.total_rooms || 0;
+    } catch (error) {
+      console.error('Error fetching booked rooms:', error);
+      return 0;
+    } finally {
+      setIsFetchingBookedRooms(false);
     }
-    
-    const data = await response.json();
-    return data.total_rooms || 0;  // Ensure we get a number
-  } catch (error) {
-    console.error('Error fetching booked rooms:', error);
-    return 0;
-  }
-};
+  };
 
   useEffect(() => {
     fetchBlockedDates();
@@ -146,59 +150,134 @@ const fetchBookedRooms = async (accommodationId: number, checkInDate: string) =>
       child: parseFloat(accommodation.package.pricing.child) || null
     };
   };
+  // Deduplicate blockedDates by accommodation_id + blocked_date, keeping latest updated_at
+const getLatestBlockedDates = (data: typeof blockedDates) => {
+  const map = new Map<string, any>();
 
-  // ... existing code ...
+  data.forEach(item => {
+    const key = `${item.accommodation_id}_${item.blocked_date}`;
+    const existing = map.get(key);
 
-const calculateAvailableRooms = async (accommodationId: number, dateStr: string) => {
+    if (!existing || new Date(item.updated_at) > new Date(existing.updated_at)) {
+      map.set(key, item);
+    }
+  });
+
+  return Array.from(map.values());
+};
+
+
+const calculateAvailableRooms = async (
+  accommodationId: number,
+  dateStr: string
+): Promise<number | null> => {
   const accommodation = accommodations.find(a => a.id === accommodationId);
   if (!accommodation) return null;
 
-  const totalRooms = accommodation.rooms;
+  const totalRooms = Number(accommodation.rooms);
 
-  // Find blocked rooms for this accommodation and date
-  const blockedForDate = blockedDates.filter(
-    b => b.accommodation_id === accommodationId && b.blocked_date === dateStr
-  );
+  // Preprocess to keep only latest updated record per date per accommodation
+  const getLatestBlockedDates = (data: typeof blockedDates) => {
+    const map = new Map<string, any>();
+    data.forEach(item => {
+      const key = `${item.accommodation_id}_${item.blocked_date}`;
+      const existing = map.get(key);
+      if (!existing || new Date(item.updated_at) > new Date(existing.updated_at)) {
+        map.set(key, item);
+      }
+    });
+    return Array.from(map.values());
+  };
 
-  // If any block has rooms=null, it means all rooms are blocked
+  const latestBlockedDates = getLatestBlockedDates(blockedDates);
+
+  console.log("Date Str is:", dateStr);
+
+  // Filter for the given date
+  const blockedForDate = latestBlockedDates.filter(b => {
+    const blockedDateStr =
+      typeof b.blocked_date === "string"
+        ? b.blocked_date.trim().slice(0, 10)
+        : format(new Date(b.blocked_date), "yyyy-MM-dd");
+
+    return (
+      b.accommodation_id === accommodationId &&
+      blockedDateStr === dateStr &&
+      (editingDate ? b.id !== editingDate.id : true)
+    );
+  });
+
+  console.log("Blocked Dates for this day:", blockedForDate);
+
+  // If any block has rooms=null => all rooms blocked
   if (blockedForDate.some(b => b.rooms === null)) {
     return 0;
   }
 
-  // Sum all blocked rooms for this date
-  const blockedRooms = blockedForDate.reduce((sum, b) => sum + (b.rooms || 0), 0);
+  const blockedRooms = blockedForDate.reduce(
+    (sum, b) => sum + (Number(b.rooms) || 0),
+    0
+  );
 
-  // Fetch booked rooms for this specific date and accommodation
   const bookedRooms = await fetchBookedRooms(accommodationId, dateStr);
+  console.log("Booked Room is : ",bookedRooms);
+  let available = totalRooms - blockedRooms - bookedRooms;
 
-  // Calculate available rooms
-  const available = totalRooms - blockedRooms - bookedRooms;
+  setAvailableRoomsForRoomSection(available + blockedRooms);
+
   return available > 0 ? available : 0;
 };
 
-// ... existing code ...
+  const getRoomStatus = (accommodationId: number, dateStr: string) => {
+    const status: { [key: number]: 'available' | 'blocked' } = {};
+    const accommodation = accommodations.find(a => a.id === accommodationId);
 
-    const blockedRooms = blockedForDate.reduce((sum, b) => sum + (b.rooms || 0), 0);
+    if (!accommodation) return status;
 
-    // Fetch booked rooms for this specific date and accommodation
-    const bookedRooms = await fetchBookedRooms(accommodationId, dateStr);
+    // Initialize all rooms as available
+    for (let i = 1; i <= accommodation.rooms; i++) {
+      status[i] = 'available';
+    }
 
-    // Calculate available rooms
-    const available = totalRooms - blockedRooms - bookedRooms;
-    return available > 0 ? available : 0;
+    // Find blocked rooms for this accommodation and date, excluding the current editing block
+    const blockedForDate = blockedDates.filter(
+      b => b.accommodation_id === accommodationId &&
+        b.blocked_date === dateStr &&
+        (editingDate ? b.id !== editingDate.id : true)
+    );
+
+    // Mark blocked rooms
+    blockedForDate.forEach(block => {
+      if (block.rooms === null) {
+        // All rooms are blocked
+        for (let i = 1; i <= accommodation.rooms; i++) {
+          status[i] = 'blocked';
+        }
+      } else if (block.rooms) {
+        // Specific room blocked
+        status[block.rooms] = 'blocked';
+      }
+    });
+
+    return status;
   };
 
   const handleDayClick = async (day: Date) => {
+    if (isProcessingDayClick) return;
+    setAvailableRoomsForRoomSection(0);
+    setAvailableRooms(null);
+    setIsProcessingDayClick(true);
     const dayStr = format(day, 'yyyy-MM-dd');
 
     if (isBefore(startOfDay(day), startOfDay(new Date()))) {
       setError('Cannot block or modify past dates');
+      setIsProcessingDayClick(false);
       return;
     }
 
     // Always open form
     setShowForm(true);
-    
+
     // Reset edit mode when selecting a new date
     if (editingDate) {
       setEditingDate(null);
@@ -209,43 +288,54 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
       setAvailableRooms(null);
     }
 
-    // Check if this date is blocked for the selected accommodation
-    if (selectedAccommodationId) {
-      const isBlocked = blockedDates.some(b => 
-        b.blocked_date === dayStr && 
-        b.accommodation_id === selectedAccommodationId
-      );
-      
-      if (isBlocked) {
-        const blockedDate = blockedDates.find(b => 
-          b.blocked_date === dayStr && 
+    // Set the selected day
+    setSelectedDay(day);
+
+    try {
+      // Check if this date is blocked for the selected accommodation
+      if (selectedAccommodationId) {
+        const isBlocked = blockedDates.some(b =>
+          b.blocked_date === dayStr &&
           b.accommodation_id === selectedAccommodationId
         );
-        
-        if (blockedDate) {
-          setEditingDate(blockedDate);
-          setReason(blockedDate.reason || '');
-          setSelectedRoom(blockedDate.rooms || null);
-          setAdultPrice(blockedDate.adult_price || '');
-          setChildPrice(blockedDate.child_price || '');
-          setSelectedDays([day]);
-          
-          // Calculate available rooms
-          if (blockedDate.accommodation_id) {
-            const available = await calculateAvailableRooms(blockedDate.accommodation_id, dayStr);
-            setAvailableRooms(available);
+
+        if (isBlocked) {
+          const blockedDate = blockedDates.find(b =>
+            b.blocked_date === dayStr &&
+            b.accommodation_id === selectedAccommodationId
+          );
+
+          if (blockedDate) {
+            setEditingDate(blockedDate);
+            setReason(blockedDate.reason || '');
+            setSelectedRoom(blockedDate.rooms || null);
+            setAdultPrice(blockedDate.adult_price || '');
+            setChildPrice(blockedDate.child_price || '');
+
+            // Calculate available rooms
+            if (blockedDate.accommodation_id) {
+              const available = await calculateAvailableRooms(blockedDate.accommodation_id, dayStr);
+              setAvailableRooms(available);
+
+              // Get room status
+              const status = getRoomStatus(blockedDate.accommodation_id, dayStr);
+              setRoomStatus(status);
+            }
+            return;
           }
-          return;
         }
       }
-    }
 
-    // Toggle date selection
-    const isSelected = selectedDays.some(d => format(d, 'yyyy-MM-dd') === dayStr);
-    if (isSelected) {
-      setSelectedDays(selectedDays.filter(d => format(d, 'yyyy-MM-dd') !== dayStr));
-    } else {
-      setSelectedDays([...selectedDays, day]);
+      // If accommodation is already selected, calculate room status
+      if (selectedAccommodationId) {
+        const status = getRoomStatus(selectedAccommodationId, dayStr);
+        setRoomStatus(status);
+
+        const available = await calculateAvailableRooms(selectedAccommodationId, dayStr);
+        setAvailableRooms(available);
+      }
+    } finally {
+      setIsProcessingDayClick(false);
     }
   };
 
@@ -259,19 +349,26 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
       setAdultPrice(defaultPrices.adult || '');
       setChildPrice(defaultPrices.child || '');
 
-      // Calculate available rooms if a date is selected
+      // Calculate available rooms and room status if a date is selected
       if (editingDate?.blocked_date) {
         const available = await calculateAvailableRooms(id, editingDate.blocked_date);
         setAvailableRooms(available);
-      } else if (selectedDays.length > 0) {
-        const dateStr = format(selectedDays[0], 'yyyy-MM-dd');
+
+        const status = getRoomStatus(id, editingDate.blocked_date);
+        setRoomStatus(status);
+      } else if (selectedDay) {
+        const dateStr = format(selectedDay, 'yyyy-MM-dd');
         const available = await calculateAvailableRooms(id, dateStr);
         setAvailableRooms(available);
+
+        const status = getRoomStatus(id, dateStr);
+        setRoomStatus(status);
       }
     } else {
       setAdultPrice('');
       setChildPrice('');
       setAvailableRooms(null);
+      setRoomStatus({});
     }
   };
 
@@ -301,8 +398,8 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
 
   const handleSaveBlockedDates = async (actionType: 'block' | 'price' | 'both') => {
     if (!validateForm()) return;
-    if (selectedDays.length === 0 && !editingDate) {
-      setError('Please select at least one date');
+    if (!selectedDay && !editingDate) {
+      setError('Please select a date');
       return;
     }
 
@@ -310,7 +407,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
       setLoading(true);
       const dates = editingDate
         ? [editingDate.blocked_date]
-        : selectedDays.map(day => format(day, 'yyyy-MM-dd'));
+        : selectedDay ? [format(selectedDay, 'yyyy-MM-dd')] : [];
 
       const payload = {
         dates,
@@ -381,22 +478,23 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
 
   const resetForm = () => {
     setShowForm(false);
-    setSelectedDays([]);
+    setSelectedDay(null);
     setReason('');
     setSelectedRoom(null);
     setEditingDate(null);
     setAdultPrice('');
     setChildPrice('');
     setAvailableRooms(null);
+    setRoomStatus({});
   };
 
   // Highlight only the selected accommodation's blocked dates
   const getBlockStatusForDate = (date: Date) => {
     if (!selectedAccommodationId) return null;
-    
+
     const dateStr = format(date, 'yyyy-MM-dd');
-    const blockedDatesForDay = blockedDates.filter(b => 
-      b.blocked_date === dateStr && 
+    const blockedDatesForDay = blockedDates.filter(b =>
+      b.blocked_date === dateStr &&
       b.accommodation_id === selectedAccommodationId
     );
 
@@ -533,7 +631,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
               const isCurrentMonth = day.getMonth() === currentDate.getMonth();
               const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
               const blockedStatus = getBlockStatusForDate(day);
-              const isSelected = selectedDays.some(d => format(d, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
+              const isSelected = selectedDay && format(selectedDay, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
 
               let dayClasses = [
                 'p-2',
@@ -586,7 +684,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                   key={index}
                   onClick={() => handleDayClick(day)}
                   disabled={loading || isBefore(startOfDay(day), startOfDay(new Date())) ||
-                    (blockedStatus?.isFullyBlocked)}
+                    (blockedStatus?.isFullyBlocked) || isProcessingDayClick}
                   className={dayClasses.join(' ')}
                 >
                   {day.getDate()}
@@ -648,12 +746,12 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingDate ? 'Selected Date' : 'Selected Dates'}
+                    {editingDate ? 'Selected Date' : 'Selected Date'}
                   </label>
                   <div className="text-sm text-gray-900 bg-gray-50 p-2 rounded-md">
                     {editingDate
                       ? format(new Date(editingDate.blocked_date), 'MMMM d, yyyy')
-                      : selectedDays.map(day => format(day, 'MMMM d, yyyy')).join(', ')
+                      : selectedDay ? format(selectedDay, 'MMMM d, yyyy') : 'No date selected'
                     }
                   </div>
                 </div>
@@ -692,22 +790,20 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                       <select
                         id="roomSelect"
                         value={selectedRoom !== null ? selectedRoom : ''}
-                        onChange={(e) =>
-                          setSelectedRoom(e.target.value ? Number(e.target.value) : null)
-                        }
+                        onChange={(e) => setSelectedRoom(e.target.value ? Number(e.target.value) : null)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={loading || isFetchingBookedRooms || (availableRooms !== null && availableRooms === 0)}
+                        disabled={loading || isFetchingBookedRooms}
                       >
                         <option value="">All Rooms</option>
-                        {Array.from({ length: currentAccommodation.rooms }, (_, i) => i + 1).map(roomNumber => (
+                        {Array.from({ length: availableRoomsForRoomSection }, (_, i) => i + 1).map(roomNumber => (
                           <option key={roomNumber} value={roomNumber}>
-                            {roomNumber}
+                            Room {roomNumber}
                           </option>
                         ))}
                       </select>
                       {availableRooms !== null && (
                         <span className="text-sm text-gray-500 whitespace-nowrap">
-                          Available: {availableRooms}
+                          Available: {availableRooms} | Total: {currentAccommodation.rooms}
                         </span>
                       )}
                     </div>
@@ -792,7 +888,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                     disabled={loading || isFetchingBookedRooms}
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                   >
-                    {loading ? 'Saving...' : editingDate ? 'Update Block' : 'Block Date(s)'}
+                    {loading ? 'Saving...' : editingDate ? 'Update Block' : 'Block Date'}
                   </button>
                   <button
                     type="button"
@@ -800,7 +896,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                     disabled={loading || isFetchingBookedRooms}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    {loading ? 'Saving...' : editingDate ? 'Update Price' : 'Set Price(s)'}
+                    {loading ? 'Saving...' : editingDate ? 'Update Price' : 'Set Price'}
                   </button>
                 </div>
               </div>
@@ -809,13 +905,13 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                 <CalendarIcon className="mx-auto h-10 w-10 text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium text-gray-900">No dates selected</h3>
                 <p className="mt-2 text-sm text-gray-500">
-                  Select dates on the calendar to block them or set custom pricing
+                  Select a date on the calendar to block it or set custom pricing
                 </p>
               </div>
             )}
           </div>
 
-          {/* Blocked Dates List
+          {/* Blocked Dates List */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {selectedAccommodationId
@@ -865,12 +961,16 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                           setAdultPrice(date.adult_price || '');
                           setChildPrice(date.child_price || '');
                           setShowForm(true);
-                          setSelectedDays([new Date(date.blocked_date)]);
+                          setSelectedDay(new Date(date.blocked_date));
 
                           // Calculate available rooms
                           if (date.accommodation_id) {
                             const available = await calculateAvailableRooms(date.accommodation_id, date.blocked_date);
                             setAvailableRooms(available);
+
+                            // Get room status
+                            const status = getRoomStatus(date.accommodation_id, date.blocked_date);
+                            setRoomStatus(status);
                           }
                         }}
                         disabled={loading || isDeleting || isFetchingBookedRooms}
@@ -896,7 +996,7 @@ const calculateAvailableRooms = async (accommodationId: number, dateStr: string)
                 ))}
               </div>
             )}
-          </div> */}
+          </div>
         </div>
       </div>
       <p className="text-xs text-gray-500 mb-2">
