@@ -10,7 +10,6 @@ interface ApiBooking {
   guest_name: string;
   guest_email: string;
   guest_phone: string;
-  // food_veg:
   accommodation_name: string | null;
   check_in: string;
   check_out: string;
@@ -449,6 +448,9 @@ const Bookings: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Guest
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Food Preference
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     Accommodation
                   </th>
@@ -483,6 +485,15 @@ const Bookings: React.FC = () => {
                   <tr key={booking.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-blue-600">
                       <button>{booking.bookingId}</button>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="flex flex-col">
+                        <span>Adult guests: <span>{booking.adults}</span></span>
+                        <span>Chilldren guests: <span>{booking.children}</span></span>
+                        <span>Veg Count: 0 </span>
+                        <span>Non-Veg Count: 1 </span>
+                        <span>Jain Count: 2 </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div className="flex flex-col">
