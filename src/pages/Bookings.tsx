@@ -10,6 +10,7 @@ interface ApiBooking {
   guest_name: string;
   guest_email: string;
   guest_phone: string;
+  // food_veg:
   accommodation_name: string | null;
   check_in: string;
   check_out: string;
@@ -487,6 +488,7 @@ const Bookings: React.FC = () => {
                       <div className="flex flex-col">
                         <span>{booking.guest}</span>
                         <span className="text-xs text-gray-500">{booking.email}</span>
+                        <span className="text-xs text-gray-500">{booking.phone}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 hidden md:table-cell">
