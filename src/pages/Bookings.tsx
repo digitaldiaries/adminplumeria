@@ -10,9 +10,6 @@ interface ApiBooking {
   guest_name: string;
   guest_email: string;
   guest_phone: string;
-  food_veg: number;
-  food_nonveg: number;
-  food_jain: number;
   accommodation_name: string | null;
   check_in: string;
   check_out: string;
@@ -43,9 +40,6 @@ interface Booking {
   guest: string;
   email: string;
   phone: string;
-  veg:number;
-  nonVeg: number;
-  jainCount: number;
   accommodation: string;
   checkIn: string;
   checkOut: string;
@@ -131,9 +125,6 @@ const Bookings: React.FC = () => {
       guest: apiBooking.guest_name,
       email: apiBooking.guest_email,
       phone: apiBooking.guest_phone,
-      veg: apiBooking.food_veg,
-      nonVeg: apiBooking.food_nonveg,
-      jainCount: apiBooking.food_jain,
       accommodation: apiBooking.accommodation_name || 'Not specified',
       checkIn: new Date(apiBooking.check_in).toLocaleDateString('en-IN'),
       checkOut: new Date(apiBooking.check_out).toLocaleDateString('en-IN'),
@@ -506,9 +497,6 @@ const Bookings: React.FC = () => {
                       <div className="flex flex-col">
                         <span>Adult guests: <span>{booking.adults}</span></span>
                         <span>Chilldren guests: <span>{booking.children}</span></span>
-                        <span>Veg Count: <span>{booking.veg}</span></span>
-                        <span>Non-Veg Count: <span>{booking.nonVeg}</span></span>
-                        <span>Jain Count: <span>{booking.jainCount}</span></span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 hidden md:table-cell">
