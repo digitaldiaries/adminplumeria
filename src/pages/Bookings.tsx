@@ -497,18 +497,18 @@ const Bookings: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div className="flex flex-col">
+                        <span>{booking.guest}</span>
+                        <span className="text-xs text-gray-500">{booking.email}</span>
+                        <span className="text-xs text-gray-500">{booking.phone}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="flex flex-col">
                         <span>Adult guests: <span>{booking.adults}</span></span>
                         <span>Chilldren guests: <span>{booking.children}</span></span>
                         <span>Veg Count: <span>{booking.veg}</span></span>
                         <span>Non-Veg Count: <span>{booking.nonVeg}</span></span>
                         <span>Jain Count: <span>{booking.jainCount}</span></span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="flex flex-col">
-                        <span>{booking.guest}</span>
-                        <span className="text-xs text-gray-500">{booking.email}</span>
-                        <span className="text-xs text-gray-500">{booking.phone}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 hidden md:table-cell">
